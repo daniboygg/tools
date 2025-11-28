@@ -202,7 +202,7 @@
     <script>
         const canvas = document.getElementById('chordCanvas');
         const ctx = canvas.getContext('2d');
-        
+
         // String data: [fret, interval] - fret can be 'x', '0', or number
         // Order: low E, A, D, G, B, high e (top to bottom visually)
         let strings = [
@@ -355,10 +355,11 @@
                         // Draw interval text
                         if (s.interval) {
                             ctx.fillStyle = '#fff';
-                            ctx.font = 'bold 18px system-ui';
+                            ctx.font = 'bold 22px system-ui';
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
-                            ctx.fillText(s.interval, x, y);
+                            // Adjust vertical position slightly for better optical centering
+                            ctx.fillText(s.interval, x, y + 1);
                         }
                     }
                 }
