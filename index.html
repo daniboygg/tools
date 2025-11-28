@@ -331,7 +331,8 @@
                     ctx.font = 'bold 18px system-ui';
                     ctx.fillStyle = '#000';
                     ctx.textAlign = 'center';
-                    ctx.fillText('✕', leftPadding - 25, y + 6);
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('✕', leftPadding - 25, y);
                 } else if (s.fret === '0') {
                     // Open string - circle on the left
                     ctx.beginPath();
