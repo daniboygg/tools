@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chord Diagram Maker</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #1a1a1a;
+            color: #eee;
+            padding: 20px;
+            display: flex;
+            gap: 30px;
+            min-height: 100vh;
+        }
+        .panel {
+            background: #252525;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .controls {
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        h2 {
+            font-size: 14px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        .string-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .string-row label {
+            width: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .string-row select, .string-row input {
+            flex: 1;
+            padding: 8px;
+            background: #333;
+            border: 1px solid #444;
+            color: #eee;
+            border-radius: 4px;
+        }
+        .string-row input[type="text"] {
+            width: 60px;
+            flex: none;
+        }
+        .preview {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        #chordCanvas {
+            background: #fff;
+            border-radius: 4px;
+        }
+        .chord-name-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            background: #333;
+            border: 1px solid #444;
+            color: #eee;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .btn {
+            padding: 12px 24px;
+            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-primary {
+            background: #e85d04;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #dc2f02;
+        }
+        .btn-secondary {
+            background: #444;
+            color: #eee;
+        }
+        .btn-secondary:hover {
+            background: #555;
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .fret-config {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .fret-config input {
+            width: 60px;
+            padding: 8px;
+            background: #333;
+            border: 1px solid #444;
+            color: #eee;
+            border-radius: 4px;
+        }
+        .interval-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .interval-presets button {
+            padding: 4px 8px;
+            font-size: 12px;
+            background: #444;
+            border: none;
+            color: #eee;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .interval-presets button:hover {
+            background: #555;
+        }
+        .help {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="panel controls">
+        <div>
+            <h2>Chord Name</h2>
+            <input type="text" class="chord-name-input" id="chordName" placeholder="e.g. Cdim7" value="">
+        </div>
+        
+        <div>
+            <h2>Fret Range</h2>
+            <div class="fret-config">
+                <label>Start:</label>
+                <input type="number" id="startFret" value="1" min="0" max="20">
+                <label>Frets:</label>
+                <input type="number" id="numFrets" value="5" min="3" max="8">
+            </div>
+        </div>
+
+        <div>
+            <h2>Strings (low E to high e)</h2>
+            <div id="stringInputs"></div>
+            <p class="help">Fret: 0=open, X=muted, 1-20=fret number</p>
+        </div>
+
+        <div>
+            <h2>Quick Intervals</h2>
+            <div class="interval-presets">
+                <button onclick="setInterval('1')">1</button>
+                <button onclick="setInterval('♭2')">♭2</button>
+                <button onclick="setInterval('2')">2</button>
+                <button onclick="setInterval('♭3')">♭3</button>
+                <button onclick="setInterval('3')">3</button>
+                <button onclick="setInterval('4')">4</button>
+                <button onclick="setInterval('♭5')">♭5</button>
+                <button onclick="setInterval('5')">5</button>
+                <button onclick="setInterval('♯5')">♯5</button>
+                <button onclick="setInterval('6')">6</button>
+                <button onclick="setInterval('♭7')">♭7</button>
+                <button onclick="setInterval('7')">7</button>
+            </div>
+            <p class="help">Click to copy, then paste in interval field</p>
+        </div>
+
+        <div class="buttons">
+            <button class="btn btn-primary" onclick="downloadPNG()">Download PNG</button>
+            <button class="btn btn-secondary" onclick="copyToClipboard()">Copy to Clipboard</button>
+            <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+        </div>
+    </div>
+
+    <div class="panel preview">
+        <h2>Preview</h2>
+        <canvas id="chordCanvas" width="400" height="280"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('chordCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // String data: [fret, interval] - fret can be 'x', '0', or number
+        // Order: low E, A, D, G, B, high e (top to bottom visually)
+        let strings = [
+            { fret: 'x', interval: '' },
+            { fret: '2', interval: '1' },
+            { fret: '3', interval: '♭5' },
+            { fret: '2', interval: '♭7' },
+            { fret: '3', interval: '♭3' },
+            { fret: 'x', interval: '' }
+        ];
+
+        let lastFocusedInterval = null;
+
+        function createStringInputs() {
+            const container = document.getElementById('stringInputs');
+            const stringNames = ['E', 'A', 'D', 'G', 'B', 'e'];
+            
+            container.innerHTML = strings.map((s, i) => `
+                <div class="string-row">
+                    <label>${stringNames[i]}</label>
+                    <select onchange="updateString(${i}, 'fret', this.value)">
+                        <option value="x" ${s.fret === 'x' ? 'selected' : ''}>X</option>
+                        <option value="0" ${s.fret === '0' ? 'selected' : ''}>Open</option>
+                        ${[...Array(20)].map((_, f) => 
+                            `<option value="${f+1}" ${s.fret === String(f+1) ? 'selected' : ''}>${f+1}</option>`
+                        ).join('')}
+                    </select>
+                    <input type="text" 
+                           placeholder="interval" 
+                           value="${s.interval}"
+                           onfocus="lastFocusedInterval = this"
+                           oninput="updateString(${i}, 'interval', this.value)">
+                </div>
+            `).join('');
+        }
+
+        function updateString(index, prop, value) {
+            strings[index][prop] = value;
+            draw();
+        }
+
+        function setInterval(interval) {
+            if (lastFocusedInterval) {
+                lastFocusedInterval.value = interval;
+                const index = [...document.querySelectorAll('.string-row input[type="text"]')].indexOf(lastFocusedInterval);
+                if (index !== -1) {
+                    strings[index].interval = interval;
+                    draw();
+                }
+            }
+            navigator.clipboard.writeText(interval);
+        }
+
+        function draw() {
+            const startFret = parseInt(document.getElementById('startFret').value) || 1;
+            const numFrets = parseInt(document.getElementById('numFrets').value) || 5;
+            const chordName = document.getElementById('chordName').value;
+
+            const leftPadding = 60;
+            const rightPadding = 40;
+            const topPadding = 50;
+            const bottomPadding = 30;
+            const width = canvas.width - leftPadding - rightPadding;
+            const height = canvas.height - topPadding - bottomPadding;
+            const stringSpacing = height / 5;
+            const fretSpacing = width / numFrets;
+
+            // Clear
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Chord name
+            if (chordName) {
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 24px system-ui';
+                ctx.textAlign = 'center';
+                ctx.fillText(chordName, canvas.width / 2, 28);
+            }
+
+            // Starting fret indicator
+            if (startFret > 1) {
+                ctx.fillStyle = '#000';
+                ctx.font = '14px system-ui';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${startFret}fr`, leftPadding + fretSpacing / 2, topPadding - 10);
+            }
+
+            // Draw strings (horizontal lines)
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < 6; i++) {
+                const y = topPadding + i * stringSpacing;
+                ctx.beginPath();
+                ctx.moveTo(leftPadding, y);
+                ctx.lineTo(leftPadding + width, y);
+                ctx.stroke();
+            }
+
+            // Draw frets (vertical lines)
+            ctx.lineWidth = 2;
+            for (let i = 0; i <= numFrets; i++) {
+                const x = leftPadding + i * fretSpacing;
+                ctx.beginPath();
+                ctx.moveTo(x, topPadding);
+                ctx.lineTo(x, topPadding + height);
+                ctx.stroke();
+            }
+
+            // Draw nut if starting from fret 1
+            if (startFret <= 1) {
+                ctx.lineWidth = 6;
+                ctx.beginPath();
+                ctx.moveTo(leftPadding, topPadding);
+                ctx.lineTo(leftPadding, topPadding + height);
+                ctx.stroke();
+            }
+
+            // Draw notes and markers
+            strings.forEach((s, i) => {
+                const y = topPadding + i * stringSpacing;
+                
+                if (s.fret === 'x') {
+                    // X marker on the left
+                    ctx.font = 'bold 18px system-ui';
+                    ctx.fillStyle = '#000';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('✕', leftPadding - 25, y + 6);
+                } else if (s.fret === '0') {
+                    // Open string - circle on the left
+                    ctx.beginPath();
+                    ctx.arc(leftPadding - 25, y, 8, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                } else {
+                    const fretNum = parseInt(s.fret);
+                    const relativeFret = fretNum - startFret + 1;
+                    
+                    if (relativeFret >= 1 && relativeFret <= numFrets) {
+                        const x = leftPadding + (relativeFret - 0.5) * fretSpacing;
+                        
+                        // Draw circle
+                        ctx.beginPath();
+                        ctx.arc(x, y, 16, 0, Math.PI * 2);
+                        ctx.fillStyle = '#e85d04';
+                        ctx.fill();
+
+                        // Draw interval text
+                        if (s.interval) {
+                            ctx.fillStyle = '#fff';
+                            ctx.font = 'bold 13px system-ui';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(s.interval, x, y);
+                        }
+                    }
+                }
+            });
+
+            ctx.textBaseline = 'alphabetic';
+        }
+
+        function downloadPNG() {
+            const link = document.createElement('a');
+            const name = document.getElementById('chordName').value || 'chord';
+            link.download = `${name}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        async function copyToClipboard() {
+            try {
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                await navigator.clipboard.write([
+                    new ClipboardItem({ 'image/png': blob })
+                ]);
+                alert('Copied to clipboard!');
+            } catch (err) {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy. Try downloading instead.');
+            }
+        }
+
+        function clearAll() {
+            strings = strings.map(() => ({ fret: 'x', interval: '' }));
+            document.getElementById('chordName').value = '';
+            createStringInputs();
+            draw();
+        }
+
+        // Event listeners
+        document.getElementById('startFret').addEventListener('input', draw);
+        document.getElementById('numFrets').addEventListener('input', draw);
+        document.getElementById('chordName').addEventListener('input', draw);
+
+        // Initialize
+        createStringInputs();
+        draw();
+    </script>
+</body>
+</html>
