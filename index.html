@@ -324,7 +324,9 @@
 
             // Draw notes and markers
             strings.forEach((s, i) => {
-                const y = topPadding + i * stringSpacing;
+                // Reverse visual order: low E at bottom, high e at top
+                const visualIndex = 5 - i;
+                const y = topPadding + visualIndex * stringSpacing;
                 
                 if (s.fret === 'x') {
                     // X marker on the left
