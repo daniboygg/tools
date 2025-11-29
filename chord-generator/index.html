@@ -223,7 +223,7 @@
         <button onclick="setInterval('7♭')">7♭</button>
         <button onclick="setInterval('7')">7</button>
       </div>
-      <p class="help">Click to copy, then paste in interval field</p>
+      <p class="help">Click to change interval to last focused string</p>
     </div>
 
     <div class="buttons">
@@ -265,7 +265,7 @@
           <select onchange="updateString(${i}, 'fret', this.value)">
             <option value="x" ${s.fret === 'x' ? 'selected' : ''}>X</option>
             <option value="0" ${s.fret === '0' ? 'selected' : ''}>Open</option>
-            ${[...Array(20)].map((_, f) =>
+            ${[...Array(8)].map((_, f) =>
               `<option value="${f+1}" ${s.fret === String(f+1) ? 'selected' : ''}>${f+1}</option>`
             ).join('')}
           </select>
