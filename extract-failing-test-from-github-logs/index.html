@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Extract Failing Django Tests from GitHub Logs</title>
+  <style>
+    :root {
+      --primary-color: #0366d6;
+      --background-color: #f6f8fa;
+      --border-color: #d1d5da;
+      --text-color: #24292e;
+      --success-color: #28a745;
+      --code-background: #f6f8fa;
+      --spacing-small: 8px;
+      --spacing-medium: 16px;
+      --spacing-large: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica,
+        Arial, sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      padding: var(--spacing-large);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 95%;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin-bottom: var(--spacing-large);
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .section {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: var(--spacing-medium);
+      margin-bottom: var(--spacing-medium);
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: var(--spacing-small);
+      font-size: 14px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: var(--spacing-small);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
+        Consolas, monospace;
+      font-size: 12px;
+      resize: vertical;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+    }
+
+    button {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: var(--spacing-small);
+    }
+
+    button:hover {
+      background-color: #0256c2;
+    }
+
+    button:active {
+      background-color: #024ea4;
+    }
+
+    button.copy-btn {
+      background-color: var(--success-color);
+    }
+
+    button.copy-btn:hover {
+      background-color: #239639;
+    }
+
+    .results {
+      display: none;
+    }
+
+    .results.visible {
+      display: block;
+    }
+
+    .copy-message {
+      color: var(--success-color);
+      font-size: 14px;
+      margin-top: var(--spacing-small);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .copy-message.visible {
+      opacity: 1;
+    }
+
+    .test-list {
+      background-color: var(--code-background);
+      padding: var(--spacing-medium);
+      border-radius: 6px;
+      margin-top: var(--spacing-small);
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
+        Consolas, monospace;
+      font-size: 12px;
+      word-break: break-all;
+      line-height: 1.8;
+    }
+
+    .test-list-inline {
+      background-color: var(--code-background);
+      padding: var(--spacing-medium);
+      border-radius: 6px;
+      margin-top: var(--spacing-small);
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
+        Consolas, monospace;
+      font-size: 12px;
+      word-break: break-all;
+      line-height: 1.8;
+    }
+
+    .test-list-lines {
+      background-color: var(--code-background);
+      padding: var(--spacing-medium);
+      border-radius: 6px;
+      margin-top: var(--spacing-small);
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
+        Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.2;
+    }
+
+    .test-item {
+      padding: 2px 0;
+    }
+
+    .count {
+      color: #586069;
+      font-size: 14px;
+      margin-top: var(--spacing-small);
+    }
+
+    .subsection-label {
+      font-weight: 600;
+      font-size: 13px;
+      margin-top: var(--spacing-medium);
+      margin-bottom: var(--spacing-small);
+      color: #586069;
+    }
+
+    .button-group {
+      display: flex;
+      gap: var(--spacing-small);
+      margin-top: var(--spacing-small);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Extract Failing Tests from GitHub Logs</h1>
+
+    <div class="section">
+      <label for="logInput">Paste GitHub CI Logs:</label>
+      <textarea
+        id="logInput"
+        placeholder="Paste your GitHub logs here..."></textarea>
+      <button id="parseBtn">Parse Test Paths</button>
+    </div>
+
+    <div class="section results" id="results">
+      <label>Extracted Test Paths:</label>
+      <div class="count" id="testCount"></div>
+      <div class="test-list-lines" id="testListLines"></div>
+      <div class="button-group">
+        <button class="copy-btn" id="copyBtn">
+          Copy to Clipboard (space-separated)
+        </button>
+      </div>
+      <div class="copy-message" id="copyMessage">
+        Copied to clipboard!
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const logInput = document.getElementById('logInput');
+    const parseBtn = document.getElementById('parseBtn');
+    const results = document.getElementById('results');
+    const testListLines = document.getElementById('testListLines');
+    const testCount = document.getElementById('testCount');
+    const copyBtn = document.getElementById('copyBtn');
+    const copyMessage = document.getElementById('copyMessage');
+
+    let extractedTests = [];
+
+    function extractTestPaths(logText) {
+      const tests = new Set();
+      const lines = logText.split('\n');
+
+      const errorPattern =
+        /^(?:\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+)?ERROR:\s+(\S+)\s+\(([a-zA-Z0-9_.]+)\)/;
+      const failPattern =
+        /^(?:\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+)?FAIL:\s+(\S+)\s+\(([a-zA-Z0-9_.]+)\)/;
+
+      for (const line of lines) {
+        const errorMatch = line.match(errorPattern);
+        if (errorMatch) {
+          const testMethod = errorMatch[1];
+          const testClass = errorMatch[2];
+          const fullPath = `${testClass}.${testMethod}`;
+          tests.add(fullPath);
+          continue;
+        }
+
+        const failMatch = line.match(failPattern);
+        if (failMatch) {
+          const testMethod = failMatch[1];
+          const testClass = failMatch[2];
+          const fullPath = `${testClass}.${testMethod}`;
+          tests.add(fullPath);
+        }
+      }
+
+      return Array.from(tests).sort();
+    }
+
+    function displayResults(tests) {
+      if (tests.length === 0) {
+        testListLines.textContent = 'No test paths found';
+        testCount.textContent = '';
+        results.classList.add('visible');
+        return;
+      }
+
+      extractedTests = tests;
+
+      testListLines.innerHTML = '';
+      tests.forEach(test => {
+        const testItem = document.createElement('div');
+        testItem.className = 'test-item';
+        testItem.textContent = test;
+        testListLines.appendChild(testItem);
+      });
+
+      testCount.textContent = `Found ${tests.length} test(s)`;
+      results.classList.add('visible');
+    }
+
+    parseBtn.addEventListener('click', () => {
+      const logText = logInput.value.trim();
+      if (!logText) {
+        alert('Please paste some logs first');
+        return;
+      }
+
+      const tests = extractTestPaths(logText);
+      displayResults(tests);
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      const textToCopy = extractedTests.join(' ');
+
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        copyMessage.classList.add('visible');
+
+        setTimeout(() => {
+          copyMessage.classList.remove('visible');
+        }, 2000);
+      } catch (err) {
+        alert('Failed to copy to clipboard');
+      }
+    });
+
+    logInput.addEventListener('input', () => {
+      if (results.classList.contains('visible') && logInput.value.trim()) {
+        const tests = extractTestPaths(logInput.value.trim());
+        displayResults(tests);
+      }
+    });
+  </script>
+</body>
+</html>
