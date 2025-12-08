@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Spotify Stats</title>
+  <style>
+    :root {
+      --bg-primary: #1a1a1a;
+      --bg-secondary: #2d2d2d;
+      --bg-hover: #3a3a3a;
+      --text-primary: #ffffff;
+      --text-secondary: #b3b3b3;
+      --accent: #1db954;
+      --border: #404040;
+      --error: #ff6b6b;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      color: var(--accent);
+    }
+
+    .upload-section {
+      background-color: var(--bg-secondary);
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      margin-bottom: 30px;
+      transition: border-color 0.3s;
+    }
+
+    .upload-section:hover {
+      border-color: var(--accent);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .file-label {
+      display: inline-block;
+      padding: 12px 24px;
+      background-color: var(--accent);
+      color: var(--text-primary);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity 0.3s;
+    }
+
+    .file-label:hover {
+      opacity: 0.8;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background-color: var(--bg-secondary);
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .stat-label {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 5px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .controls {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 250px;
+      padding: 10px 15px;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 14px;
+    }
+
+    .sort-select {
+      padding: 10px 15px;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .export-btn {
+      padding: 10px 20px;
+      background-color: var(--accent);
+      color: var(--text-primary);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: opacity 0.3s;
+    }
+
+    .export-btn:hover {
+      opacity: 0.8;
+    }
+
+    .export-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .artist-list {
+      background-color: var(--bg-secondary);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .artist-item {
+      display: flex;
+      align-items: center;
+      padding: 15px 20px;
+      border-bottom: 1px solid var(--border);
+      transition: background-color 0.2s;
+    }
+
+    .artist-item:hover {
+      background-color: var(--bg-hover);
+    }
+
+    .artist-item:last-child {
+      border-bottom: none;
+    }
+
+    .artist-rank {
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--text-secondary);
+      width: 50px;
+      text-align: center;
+    }
+
+    .artist-name {
+      flex: 1;
+      font-size: 16px;
+      padding: 0 20px;
+    }
+
+    .artist-plays {
+      font-size: 14px;
+      color: var(--text-secondary);
+      min-width: 100px;
+      text-align: right;
+    }
+
+    .artist-time {
+      font-size: 14px;
+      color: var(--accent);
+      min-width: 120px;
+      text-align: right;
+      padding-left: 20px;
+    }
+
+    .error {
+      background-color: var(--error);
+      color: white;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .file-name {
+      margin-top: 10px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>My Spotify Stats</h1>
+
+    <div class="upload-section">
+      <label for="jsonFile" class="file-label">
+        Upload Your Spotify Data Export
+      </label>
+      <input type="file" id="jsonFile" accept=".json,.zip" multiple>
+      <div class="file-name" id="fileName"></div>
+    </div>
+
+    <div id="errorMessage" class="error hidden"></div>
+
+    <div id="results" class="hidden">
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-label">Total Artists</div>
+          <div class="stat-value" id="totalArtists">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Plays</div>
+          <div class="stat-value" id="totalPlays">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Time</div>
+          <div class="stat-value" id="totalTime">0h</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <input
+          type="text"
+          class="search-box"
+          id="searchBox"
+          placeholder="Search artists..."
+        >
+        <select class="sort-select" id="sortSelect">
+          <option value="plays">Sort by Plays</option>
+          <option value="time">Sort by Time</option>
+          <option value="name">Sort by Name</option>
+        </select>
+        <button class="export-btn" id="exportBtn">Export CSV</button>
+      </div>
+
+      <div class="artist-list" id="artistList"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    let artistsData = [];
+    let filteredData = [];
+    let allData = [];
+
+    const fileInput = document.getElementById('jsonFile');
+    const fileName = document.getElementById('fileName');
+    const errorMessage = document.getElementById('errorMessage');
+    const results = document.getElementById('results');
+    const artistList = document.getElementById('artistList');
+    const searchBox = document.getElementById('searchBox');
+    const sortSelect = document.getElementById('sortSelect');
+    const exportBtn = document.getElementById('exportBtn');
+
+    fileInput.addEventListener('change', handleFileUpload);
+    searchBox.addEventListener('input', filterArtists);
+    sortSelect.addEventListener('change', sortAndRender);
+    exportBtn.addEventListener('click', exportToCSV);
+
+    async function handleFileUpload(event) {
+      const files = Array.from(event.target.files);
+      if (files.length === 0) return;
+
+      if (files.length === 1) {
+        fileName.textContent = files[0].name;
+      } else {
+        fileName.textContent = `${files.length} files selected`;
+      }
+
+      errorMessage.classList.add('hidden');
+      allData = [];
+
+      try {
+        for (const file of files) {
+          if (file.name.endsWith('.zip')) {
+            const jsonFiles = await extractZip(file);
+            for (const jsonData of jsonFiles) {
+              if (Array.isArray(jsonData)) {
+                allData = allData.concat(jsonData);
+              }
+            }
+          } else {
+            const data = await readFile(file);
+            if (!Array.isArray(data)) {
+              showError(`${file.name} must contain an array`);
+              return;
+            }
+            allData = allData.concat(data);
+          }
+        }
+        processData(allData);
+      } catch (error) {
+        showError('Error reading files: ' + error.message);
+      }
+    }
+
+    async function extractZip(file) {
+      const zip = await JSZip.loadAsync(file);
+      const jsonFiles = [];
+
+      for (const [path, zipEntry] of Object.entries(zip.files)) {
+        if (!zipEntry.dir && path.endsWith('.json')) {
+          try {
+            const content = await zipEntry.async('text');
+            const data = JSON.parse(content);
+            jsonFiles.push(data);
+          } catch (error) {
+            console.warn(`Skipping ${path}: ${error.message}`);
+          }
+        }
+      }
+
+      return jsonFiles;
+    }
+
+    function readFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const data = JSON.parse(e.target.result);
+            resolve(data);
+          } catch (error) {
+            reject(new Error(`Invalid JSON in ${file.name}: ${error.message}`));
+          }
+        };
+        reader.onerror = function() {
+          reject(new Error(`Error reading ${file.name}`));
+        };
+        reader.readAsText(file);
+      });
+    }
+
+    function processData(data) {
+      const artistMap = new Map();
+
+      data.forEach(entry => {
+        const artistName = entry.master_metadata_album_artist_name;
+        if (!artistName) return;
+
+        if (artistMap.has(artistName)) {
+          const existing = artistMap.get(artistName);
+          existing.plays++;
+          existing.totalMs += entry.ms_played || 0;
+        } else {
+          artistMap.set(artistName, {
+            name: artistName,
+            plays: 1,
+            totalMs: entry.ms_played || 0
+          });
+        }
+      });
+
+      artistsData = Array.from(artistMap.values());
+      filteredData = [...artistsData];
+
+      updateStats();
+      sortAndRender();
+      results.classList.remove('hidden');
+    }
+
+    function updateStats() {
+      const totalArtists = artistsData.length;
+      const totalPlays = artistsData.reduce((sum, a) => sum + a.plays, 0);
+      const totalMs = artistsData.reduce((sum, a) => sum + a.totalMs, 0);
+      const totalHours = Math.round(totalMs / 1000 / 60 / 60);
+
+      document.getElementById('totalArtists').textContent = totalArtists;
+      document.getElementById('totalPlays').textContent =
+        totalPlays.toLocaleString();
+      document.getElementById('totalTime').textContent = totalHours + 'h';
+    }
+
+    function filterArtists() {
+      const query = searchBox.value.toLowerCase();
+      filteredData = artistsData.filter(artist =>
+        artist.name.toLowerCase().includes(query)
+      );
+      sortAndRender();
+    }
+
+    function sortAndRender() {
+      const sortBy = sortSelect.value;
+
+      filteredData.sort((a, b) => {
+        if (sortBy === 'plays') {
+          return b.plays - a.plays;
+        } else if (sortBy === 'time') {
+          return b.totalMs - a.totalMs;
+        } else {
+          return a.name.localeCompare(b.name);
+        }
+      });
+
+      renderArtists();
+    }
+
+    function renderArtists() {
+      artistList.innerHTML = '';
+
+      filteredData.forEach((artist, index) => {
+        const item = document.createElement('div');
+        item.className = 'artist-item';
+
+        const rank = document.createElement('div');
+        rank.className = 'artist-rank';
+        rank.textContent = index + 1;
+
+        const name = document.createElement('div');
+        name.className = 'artist-name';
+        name.textContent = artist.name;
+
+        const plays = document.createElement('div');
+        plays.className = 'artist-plays';
+        plays.textContent = artist.plays + ' plays';
+
+        const time = document.createElement('div');
+        time.className = 'artist-time';
+        time.textContent = formatTime(artist.totalMs);
+
+        item.appendChild(rank);
+        item.appendChild(name);
+        item.appendChild(plays);
+        item.appendChild(time);
+        artistList.appendChild(item);
+      });
+    }
+
+    function formatTime(ms) {
+      const hours = Math.floor(ms / 1000 / 60 / 60);
+      const minutes = Math.floor((ms / 1000 / 60) % 60);
+      return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+    }
+
+    function exportToCSV() {
+      const headers = ['Rank', 'Artist', 'Plays', 'Time (hours)'];
+      const rows = filteredData.map((artist, index) => [
+        index + 1,
+        `"${artist.name}"`,
+        artist.plays,
+        (artist.totalMs / 1000 / 60 / 60).toFixed(2)
+      ]);
+
+      const csv = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'spotify-artists.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorMessage.classList.remove('hidden');
+      results.classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
