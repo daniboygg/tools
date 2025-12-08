@@ -97,11 +97,11 @@
     }
 
     button.copy-btn {
-      background-color: var(--success-color);
+      background-color: var(--primary-color);
     }
 
     button.copy-btn:hover {
-      background-color: #239639;
+      background-color: #0256c2;
     }
 
     .results {
@@ -161,6 +161,15 @@
 
     .test-item {
       padding: 2px 0;
+    }
+
+    .test-common {
+      color: #6a737d;
+    }
+
+    .test-unique {
+      color: #24292e;
+      font-weight: 600;
     }
 
     .count {
@@ -253,6 +262,22 @@
       return Array.from(tests).sort();
     }
 
+    function findCommonPrefix(tests) {
+      if (tests.length === 0) return '';
+      if (tests.length === 1) return '';
+
+      let prefix = tests[0];
+      for (let i = 1; i < tests.length; i++) {
+        while (tests[i].indexOf(prefix) !== 0) {
+          prefix = prefix.substring(0, prefix.length - 1);
+          if (prefix === '') return '';
+        }
+      }
+
+      const lastDot = prefix.lastIndexOf('.');
+      return lastDot !== -1 ? prefix.substring(0, lastDot + 1) : '';
+    }
+
     function displayResults(tests) {
       if (tests.length === 0) {
         testListLines.textContent = 'No test paths found';
@@ -263,11 +288,28 @@
 
       extractedTests = tests;
 
+      const commonPrefix = findCommonPrefix(tests);
+
       testListLines.innerHTML = '';
       tests.forEach(test => {
         const testItem = document.createElement('div');
         testItem.className = 'test-item';
-        testItem.textContent = test;
+
+        if (commonPrefix && test.startsWith(commonPrefix)) {
+          const commonPart = document.createElement('span');
+          commonPart.className = 'test-common';
+          commonPart.textContent = commonPrefix;
+
+          const uniquePart = document.createElement('span');
+          uniquePart.className = 'test-unique';
+          uniquePart.textContent = test.substring(commonPrefix.length);
+
+          testItem.appendChild(commonPart);
+          testItem.appendChild(uniquePart);
+        } else {
+          testItem.textContent = test;
+        }
+
         testListLines.appendChild(testItem);
       });
 
