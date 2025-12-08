@@ -239,23 +239,41 @@
         /^(?:\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+)?ERROR:\s+(\S+)\s+\(([a-zA-Z0-9_.]+)\)/;
       const failPattern =
         /^(?:\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+)?FAIL:\s+(\S+)\s+\(([a-zA-Z0-9_.]+)\)/;
+      const bareTestPattern = /^([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+\.[A-Z][a-zA-Z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)$/;
 
       for (const line of lines) {
-        const errorMatch = line.match(errorPattern);
+        const trimmedLine = line.trim();
+
+        const errorMatch = trimmedLine.match(errorPattern);
         if (errorMatch) {
           const testMethod = errorMatch[1];
           const testClass = errorMatch[2];
-          const fullPath = `${testClass}.${testMethod}`;
-          tests.add(fullPath);
+
+          if (testClass.endsWith(`.${testMethod}`)) {
+            tests.add(testClass);
+          } else {
+            tests.add(`${testClass}.${testMethod}`);
+          }
           continue;
         }
 
-        const failMatch = line.match(failPattern);
+        const failMatch = trimmedLine.match(failPattern);
         if (failMatch) {
           const testMethod = failMatch[1];
           const testClass = failMatch[2];
-          const fullPath = `${testClass}.${testMethod}`;
-          tests.add(fullPath);
+
+          if (testClass.endsWith(`.${testMethod}`)) {
+            tests.add(testClass);
+          } else {
+            tests.add(`${testClass}.${testMethod}`);
+          }
+          continue;
+        }
+
+        const bareTestMatch = trimmedLine.match(bareTestPattern);
+        if (bareTestMatch && !trimmedLine.includes(' ') &&
+            trimmedLine.split('.').length >= 4) {
+          tests.add(trimmedLine);
         }
       }
 
