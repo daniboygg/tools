@@ -2,8 +2,8 @@
 
 ## code conventions
 
-- Do not use react or any convulted web tooling
-- Use plain HTML, CSS, and JavaScript using standad web apis
+- Do not use React or any convoluted web tooling
+- Use plain HTML, CSS, and JavaScript using standard web apis
 - When creating a new app update the proper index.html file in the root folder
 
 ## Code Style
