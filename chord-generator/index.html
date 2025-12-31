@@ -291,6 +291,12 @@
     function updateString(index, prop, value) {
       strings[index][prop] = value;
       draw();
+      // Use immediate update for fret dropdowns, debounced for interval text inputs
+      if (prop === 'fret') {
+        updateURLImmediate();
+      } else if (prop === 'interval') {
+        updateURLDebounced();
+      }
     }
 
     function setInterval(interval) {
@@ -300,9 +306,102 @@
         if (index !== -1) {
           strings[index].interval = interval;
           draw();
+          updateURLDebounced();
         }
       }
       navigator.clipboard.writeText(interval);
+    }
+
+    // URL State Management
+    function translateToURL(interval) {
+      return interval.replace(/♭/g, 'b').replace(/♯/g, 's');
+    }
+
+    function translateFromURL(interval) {
+      return interval.replace(/b/g, '♭').replace(/s/g, '♯');
+    }
+
+    function encodeStateToURL() {
+      const params = new URLSearchParams();
+
+      // Add chord name
+      const name = document.getElementById('chordName').value;
+      if (name) params.set('name', name);
+
+      // Add fret configuration
+      const startFret = document.getElementById('startFret').value;
+      const numFrets = document.getElementById('numFrets').value;
+      params.set('startFret', startFret);
+      params.set('numFrets', numFrets);
+
+      // Add string configuration
+      strings.forEach((s, i) => {
+        params.set(`string${i}fret`, s.fret);
+        const translatedInterval = translateToURL(s.interval);
+        params.set(`string${i}label`, translatedInterval);
+      });
+
+      // Update URL with pushState to create history entry
+      const newURL = '?' + params.toString();
+      history.pushState(null, '', newURL);
+    }
+
+    function decodeStateFromURL() {
+      const params = new URLSearchParams(window.location.search);
+
+      // If no parameters, return null
+      if (!params.has('startFret')) return null;
+
+      try {
+        const state = {
+          name: params.get('name') || '',
+          startFret: parseInt(params.get('startFret')) || 1,
+          numFrets: parseInt(params.get('numFrets')) || 4,
+          strings: []
+        };
+
+        // Parse string configuration
+        for (let i = 0; i < 6; i++) {
+          const fret = params.get(`string${i}fret`) || 'x';
+          const label = params.get(`string${i}label`) || '';
+          state.strings.push({
+            fret: fret,
+            interval: translateFromURL(label)
+          });
+        }
+
+        return state;
+      } catch (err) {
+        console.warn('Failed to decode URL state:', err);
+        return null;
+      }
+    }
+
+    function applyStateFromURL() {
+      const state = decodeStateFromURL();
+      if (!state) return false;
+
+      // Apply state to DOM
+      document.getElementById('chordName').value = state.name;
+      document.getElementById('startFret').value = state.startFret;
+      document.getElementById('numFrets').value = state.numFrets;
+
+      // Apply strings state
+      strings = state.strings;
+
+      return true;
+    }
+
+    let updateURLTimeout = null;
+    function updateURLDebounced() {
+      clearTimeout(updateURLTimeout);
+      updateURLTimeout = setTimeout(() => {
+        encodeStateToURL();
+      }, 500);
+    }
+
+    function updateURLImmediate() {
+      encodeStateToURL();
     }
 
     function draw() {
@@ -458,22 +557,47 @@
       document.getElementById('chordName').value = '';
       createStringInputs();
       draw();
+      updateURLImmediate();
     }
 
     // Event listeners
-    document.getElementById('startFret').addEventListener('input', draw);
-    document.getElementById('numFrets').addEventListener('input', draw);
-    document.getElementById('chordName').addEventListener('input', draw);
+    document.getElementById('startFret').addEventListener('input', function() {
+      draw();
+      updateURLImmediate();
+    });
+    document.getElementById('numFrets').addEventListener('input', function() {
+      draw();
+      updateURLImmediate();
+    });
+    document.getElementById('chordName').addEventListener('input', function() {
+      draw();
+      updateURLDebounced();
+    });
 
-    // Initialize on page load
-    window.addEventListener('load', function() {
+    // Listen for browser back/forward button navigation
+    window.addEventListener('popstate', function() {
+      applyStateFromURL();
       createStringInputs();
       draw();
     });
 
+    // Initialize on page load
+    window.addEventListener('load', function() {
+      const loaded = applyStateFromURL();
+      createStringInputs();
+      draw();
+      if (loaded) {
+        encodeStateToURL();
+      }
+    });
+
     // Also initialize immediately for faster rendering
+    const immediateLoaded = applyStateFromURL();
     createStringInputs();
     draw();
+    if (immediateLoaded) {
+      encodeStateToURL();
+    }
   </script>
 </body>
 </html>
