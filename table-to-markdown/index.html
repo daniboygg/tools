@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Table to Markdown</title>
+  <style>
+    :root {
+      --primary-color: #0366d6;
+      --background-color: #f6f8fa;
+      --border-color: #d1d5da;
+      --text-color: #24292e;
+      --success-color: #28a745;
+      --code-background: #f6f8fa;
+      --spacing-small: 8px;
+      --spacing-medium: 16px;
+      --spacing-large: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica,
+        Arial, sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      padding: var(--spacing-large);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 95%;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin-bottom: var(--spacing-large);
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .section {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: var(--spacing-medium);
+      margin-bottom: var(--spacing-medium);
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: var(--spacing-small);
+      font-size: 14px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: var(--spacing-small);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
+        Consolas, monospace;
+      font-size: 12px;
+      resize: vertical;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+    }
+
+    button {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: var(--spacing-small);
+    }
+
+    button:hover {
+      background-color: #0256c2;
+    }
+
+    button:active {
+      background-color: #024ea4;
+    }
+
+    .results {
+      display: none;
+    }
+
+    .results.visible {
+      display: block;
+    }
+
+    .output-block {
+      background-color: var(--code-background);
+      padding: var(--spacing-medium);
+      border-radius: 6px;
+      margin-top: var(--spacing-small);
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
+        Consolas, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.6;
+    }
+
+    .button-group {
+      display: flex;
+      gap: var(--spacing-small);
+      margin-top: var(--spacing-small);
+    }
+
+    .copy-message {
+      color: var(--success-color);
+      font-size: 14px;
+      margin-top: var(--spacing-small);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .copy-message.visible {
+      opacity: 1;
+    }
+
+    .description {
+      color: #586069;
+      font-size: 14px;
+      margin-bottom: var(--spacing-large);
+      line-height: 1.6;
+    }
+
+    .error-message {
+      color: #d73a49;
+      font-size: 14px;
+      margin-top: var(--spacing-small);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Claude Table to Markdown</h1>
+    <p class="description">
+      Paste a Unicode box-drawing table from Claude Code's terminal output and
+      get a clean Markdown table you can copy straight into Github, Confluence...
+      Conversion happens as you type.
+    </p>
+
+    <div class="section">
+      <label for="tableInput">Paste Box-Drawing Table:</label>
+      <textarea
+        id="tableInput"
+        placeholder="Paste a Unicode box-drawing table here..."></textarea>
+    </div>
+
+    <div class="section results" id="results">
+      <label>Markdown Output:</label>
+      <div class="output-block" id="outputBlock"></div>
+      <div class="button-group">
+        <button class="copy-btn" id="copyBtn">Copy to Clipboard</button>
+      </div>
+      <div class="copy-message" id="copyMessage">Copied to clipboard!</div>
+    </div>
+
+    <div class="error-message" id="errorMessage"></div>
+  </div>
+
+  <script>
+    const tableInput = document.getElementById('tableInput');
+    const results = document.getElementById('results');
+    const outputBlock = document.getElementById('outputBlock');
+    const copyBtn = document.getElementById('copyBtn');
+    const copyMessage = document.getElementById('copyMessage');
+    const errorMessage = document.getElementById('errorMessage');
+
+    let markdownOutput = '';
+
+    // Box-drawing border chars that indicate a divider row
+    const BORDER_STARTS = ['┌', '├', '└', '+'];
+
+    function isContentLine(trimmed) {
+      return trimmed.startsWith('│') || trimmed.startsWith('|');
+    }
+
+    function parseCells(line) {
+      // Split on │ or |, drop first and last (empty from leading/trailing delimiter)
+      return line.split(/[│|]/).slice(1, -1).map(c => c.trim());
+    }
+
+    function convertToMarkdown(input) {
+      const lines = input.split('\n');
+      const contentLines = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        if (BORDER_STARTS.some(c => trimmed.startsWith(c))) continue;
+        if (isContentLine(trimmed)) {
+          const cells = parseCells(trimmed);
+          if (cells.length > 0) {
+            contentLines.push(cells);
+          }
+        }
+      }
+
+      if (contentLines.length === 0) return null;
+
+      const colCount = Math.max(...contentLines.map(r => r.length));
+
+      // Pad rows to uniform column count
+      const rows = contentLines.map(r => {
+        while (r.length < colCount) r.push('');
+        return r;
+      });
+
+      const toRow = cells => '| ' + cells.join(' | ') + ' |';
+      const separator = Array(colCount).fill('---');
+
+      return [
+        toRow(rows[0]),
+        toRow(separator),
+        ...rows.slice(1).map(toRow)
+      ].join('\n');
+    }
+
+    function process() {
+      const raw = tableInput.value;
+      errorMessage.textContent = '';
+
+      if (!raw.trim()) {
+        results.classList.remove('visible');
+        markdownOutput = '';
+        return;
+      }
+
+      const md = convertToMarkdown(raw);
+
+      if (!md) {
+        errorMessage.textContent =
+          'No table content detected. Make sure to paste a valid box-drawing table.';
+        results.classList.remove('visible');
+        markdownOutput = '';
+        return;
+      }
+
+      markdownOutput = md;
+      outputBlock.textContent = md;
+      results.classList.add('visible');
+    }
+
+    tableInput.addEventListener('input', process);
+
+    copyBtn.addEventListener('click', async () => {
+      if (!markdownOutput) return;
+
+      try {
+        await navigator.clipboard.writeText(markdownOutput);
+        copyMessage.classList.add('visible');
+        setTimeout(() => copyMessage.classList.remove('visible'), 2000);
+      } catch (err) {
+        alert('Failed to copy to clipboard');
+      }
+    });
+  </script>
+</body>
+</html>
