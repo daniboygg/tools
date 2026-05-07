@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "GitHub Failing Tests Extractor",
+  "version": "1.0",
+  "description": "Extract failing Django tests from GitHub Actions job logs in one click.",
+  "permissions": ["clipboardWrite"],
+  "host_permissions": ["https://github.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*/actions/runs/*/job/*"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ]
+}

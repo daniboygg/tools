@@ -1,0 +1,194 @@
+/* All selectors are prefixed gfte- to avoid conflicts with GitHub's styles */
+
+#gfte-root {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#gfte-root button {
+  background: #238636;
+  color: #ffffff;
+  border: 1px solid #2ea043;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+#gfte-root button:hover { background: #2ea043; }
+#gfte-root button:active { background: #26882e; }
+
+#gfte-status {
+  font-size: 12px;
+  color: #8b949e;
+  max-width: 220px;
+}
+
+#gfte-status.gfte-error   { color: #f85149; }
+#gfte-status.gfte-success { color: #3fb950; }
+#gfte-status.gfte-warn    { color: #d29922; }
+
+/* ── Overlay backdrop ── */
+
+#gfte-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: rgba(0, 0, 0, 0.7);
+  justify-content: center;
+  align-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#gfte-overlay.gfte-visible {
+  display: flex;
+}
+
+/* ── Panel ── */
+
+#gfte-panel {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+
+#gfte-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #1c2128;
+  border-bottom: 1px solid #30363d;
+  flex-shrink: 0;
+}
+
+#gfte-panel-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f0f6fc;
+  letter-spacing: -0.01em;
+}
+
+#gfte-close-btn {
+  background: none !important;
+  border: none !important;
+  color: #8b949e;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px !important;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+
+#gfte-close-btn:hover {
+  color: #f0f6fc;
+  background: #30363d !important;
+}
+
+/* ── Body ── */
+
+#gfte-panel-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+#gfte-count {
+  font-size: 13px;
+  color: #8b949e;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+#gfte-test-list {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 2;
+}
+
+.gfte-test-item {
+  padding: 1px 0;
+}
+
+/* Common prefix: visible but clearly secondary */
+.gfte-common {
+  color: #6e7681;
+}
+
+/* Unique suffix: high contrast, stands out */
+.gfte-unique {
+  color: #e6edf3;
+  font-weight: 700;
+}
+
+/* Fix text selection color inside the list */
+#gfte-test-list *::selection {
+  background: rgba(56, 139, 253, 0.3);
+  color: inherit;
+}
+
+/* ── Footer ── */
+
+#gfte-panel-footer {
+  padding: 14px 20px;
+  background: #1c2128;
+  border-top: 1px solid #30363d;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+#gfte-panel-copy-btn {
+  background: #238636;
+  color: #ffffff;
+  border: 1px solid rgba(240, 246, 252, 0.1);
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+#gfte-panel-copy-btn:hover  { background: #2ea043; }
+#gfte-panel-copy-btn:active { background: #26882e; }
+
+#gfte-panel-copy-msg {
+  font-size: 13px;
+  color: #3fb950;
+  font-weight: 500;
+}

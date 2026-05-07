@@ -5,6 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Extract Failing Django Tests from GitHub Logs</title>
   <style>
+    .extension-banner {
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 6px;
+      padding: var(--spacing-medium);
+      margin-bottom: var(--spacing-medium);
+      font-size: 14px;
+      color: #5a4000;
+    }
+    .extension-banner a {
+      color: #0366d6;
+      font-weight: 600;
+    }
     :root {
       --primary-color: #0366d6;
       --background-color: #f6f8fa;
@@ -196,6 +209,15 @@
 <body>
   <div class="container">
     <h1>Extract Failing Django Tests from GitHub Logs</h1>
+
+    <div class="extension-banner">
+      <strong>Tip:</strong> The
+      <a href="/extract-failing-test-from-github-logs-chrome-extension/">
+        Chrome extension version
+      </a>
+      is better integrated — it adds buttons directly on GitHub Actions job pages so you
+      don't need to copy and paste logs manually.
+    </div>
 
     <div class="section">
       <label for="logInput">Paste GitHub CI Logs:</label>
