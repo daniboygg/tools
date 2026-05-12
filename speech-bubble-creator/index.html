@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speech Bubble Creator</title>
+  <style>
+    :root {
+      --bg: #e9eaed;
+      --surface: #ffffff;
+      --toolbar-bg: #1e1e2e;
+      --toolbar-text: #cdd6f4;
+      --accent: #89b4fa;
+      --accent-dark: #1e66f5;
+      --danger: #f38ba8;
+      --border: #d1d5db;
+      --text: #1e1e2e;
+      --text-muted: #6c7086;
+      --shadow: 0 4px 16px rgba(0,0,0,0.18);
+      --selected-ring: #89b4fa;
+      --tail-h: 16;
+      --tail-w: 9;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── toolbar ── */
+    #toolbar {
+      background: var(--toolbar-bg);
+      color: var(--toolbar-text);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      z-index: 10;
+    }
+
+    #toolbar h1 {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+      margin-right: 4px;
+    }
+
+    .tb-divider {
+      width: 1px;
+      height: 22px;
+      background: rgba(255,255,255,0.12);
+      margin: 0 2px;
+    }
+
+    .tb-spacer { flex: 1; }
+
+    /* ── main layout ── */
+    #main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── workspace ── */
+    #workspace {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 28px;
+      background: var(--bg);
+      background-image:
+        linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    /* ── upload placeholder ── */
+    #upload-placeholder {
+      width: 560px;
+      height: 380px;
+      border: 2px dashed #c0c4cc;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: #aaa;
+      cursor: pointer;
+      background: white;
+      transition: border-color 0.2s, color 0.2s;
+      user-select: none;
+    }
+
+    #upload-placeholder:hover {
+      border-color: var(--accent);
+      color: var(--accent-dark);
+    }
+
+    .ph-icon {
+      width: 52px;
+      height: 52px;
+      opacity: 0.4;
+    }
+
+    .ph-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .ph-sub {
+      font-size: 13px;
+      opacity: 0.7;
+    }
+
+    /* ── canvas container ── */
+    #canvas-container {
+      position: relative;
+      display: inline-block;
+      flex-shrink: 0;
+      box-shadow: var(--shadow);
+      cursor: default;
+    }
+
+    #base-image {
+      display: block;
+      max-width: calc(100vw - 296px);
+      max-height: calc(100vh - 90px);
+      user-select: none;
+      -webkit-user-drag: none;
+      pointer-events: none;
+    }
+
+    #bubbles-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    /* ── speech bubble ── */
+    .speech-bubble {
+      position: absolute;
+      pointer-events: all;
+      cursor: move;
+      user-select: none;
+      transform-origin: top left;
+    }
+
+    .bubble-body {
+      position: relative;
+      border-radius: 14px;
+      padding: 10px 14px;
+      border: 2.5px solid #222;
+      background: #fff;
+      font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;
+      font-size: 16px;
+      line-height: 1.4;
+      text-align: center;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-width: 60px;
+      min-height: 36px;
+      overflow: visible;
+    }
+
+    /* tail triangles — built dynamically, positioned inside .bubble-body */
+    .bubble-tail-outer,
+    .bubble-tail-inner {
+      position: absolute;
+      width: 0;
+      height: 0;
+    }
+
+    /* thought bubble */
+    .speech-bubble.thought-style .bubble-body {
+      background: transparent;
+      border: none;
+      padding: 22px 28px;
+      min-height: 80px;
+      isolation: isolate; /* new stacking context so cloud-svg can go below text */
+    }
+
+    .cloud-svg {
+      position: absolute;
+      pointer-events: none;
+      overflow: visible;
+      z-index: -1; /* render behind text and tail circles */
+    }
+
+
+    /* style picker */
+    .style-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+    }
+
+    .style-btn {
+      padding: 7px 4px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+      text-align: center;
+      transition: background 0.1s, border-color 0.1s;
+    }
+
+    .style-btn:hover { background: #f5f5f5; }
+
+    .style-btn.active {
+      background: var(--toolbar-bg);
+      border-color: var(--toolbar-bg);
+      color: var(--accent);
+    }
+
+    /* selected outline */
+    .speech-bubble.selected .bubble-body {
+      outline: 2px solid var(--selected-ring);
+      outline-offset: 3px;
+    }
+
+    /* delete button — positioned relative to .speech-bubble */
+    .bubble-del {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      width: 22px;
+      height: 22px;
+      background: var(--danger);
+      color: #fff;
+      border: 2px solid white;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+      z-index: 5;
+    }
+
+    .speech-bubble.selected .bubble-del {
+      display: flex;
+    }
+
+    /* ── sidebar ── */
+    #sidebar {
+      width: 256px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+
+    .sb-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .sb-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .form-row {
+      margin-bottom: 10px;
+    }
+
+    .form-row label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 500;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
+    .form-row label .val {
+      color: var(--accent-dark);
+      font-weight: 700;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 7px 9px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text);
+      resize: vertical;
+      min-height: 56px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    textarea:focus { border-color: var(--accent); }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-dark);
+      margin-top: 2px;
+    }
+
+    .color-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .color-item label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input[type="color"] {
+      width: 100%;
+      height: 30px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+      padding: 2px;
+      background: none;
+    }
+
+    /* tail direction */
+    .tail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+
+    .tail-btn {
+      padding: 6px 4px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      background: white;
+      cursor: pointer;
+      font-size: 16px;
+      text-align: center;
+      transition: background 0.1s, border-color 0.1s;
+    }
+
+    .tail-btn:hover { background: #f5f5f5; }
+
+    .tail-btn.active {
+      background: var(--toolbar-bg);
+      border-color: var(--toolbar-bg);
+      color: var(--accent);
+    }
+
+    .tail-btn.wide { grid-column: span 3; font-size: 12px; padding: 6px; }
+
+    /* empty state */
+    .sb-empty {
+      padding: 28px 16px;
+      text-align: center;
+      color: #bbb;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    /* ── buttons ── */
+    .btn {
+      padding: 7px 13px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.15s, opacity 0.15s;
+    }
+
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-ghost {
+      background: rgba(255,255,255,0.09);
+      color: var(--toolbar-text);
+    }
+    .btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.16); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--toolbar-bg);
+      font-weight: 700;
+    }
+    .btn-primary:hover:not(:disabled) { background: #74c7ec; }
+
+    .btn-danger {
+      width: 100%;
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+    .btn-danger:hover { background: #fecaca; }
+
+    #file-input { display: none; }
+  </style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>Speech Bubble Creator</h1>
+  <div class="tb-divider"></div>
+  <input type="file" id="file-input" accept="image/*">
+  <button class="btn btn-ghost" id="upload-btn">Upload Image</button>
+  <div class="tb-divider"></div>
+  <button class="btn btn-ghost" id="add-btn" disabled>+ Add Bubble</button>
+  <div class="tb-spacer"></div>
+  <button class="btn btn-primary" id="download-btn" disabled>Download PNG</button>
+</div>
+
+<div id="main">
+
+  <div id="workspace">
+    <div id="upload-placeholder">
+      <svg class="ph-icon" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+      <div class="ph-title">Click to upload an image</div>
+      <div class="ph-sub">PNG · JPG · GIF · WebP</div>
+    </div>
+    <div id="canvas-container" style="display:none">
+      <img id="base-image" alt="" draggable="false">
+      <div id="bubbles-layer"></div>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div class="sb-empty" id="sb-empty">
+      Upload an image, then click<br>
+      <strong>+ Add Bubble</strong> to start.<br><br>
+      Click a bubble to edit it.
+    </div>
+    <div id="sb-editor" style="display:none">
+      <div class="sb-section">
+        <div class="sb-label">Text</div>
+        <div class="form-row">
+          <textarea id="p-text" placeholder="Enter text..."></textarea>
+        </div>
+        <div class="form-row">
+          <label>Font size <span class="val" id="v-fs">16</span>px</label>
+          <input type="range" id="p-fontsize" min="8" max="72" step="1" value="16">
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-label">Scale</div>
+        <div class="form-row">
+          <label>Size <span class="val" id="v-scale">1.00</span>&times;</label>
+          <input type="range" id="p-scale" min="0.3" max="3" step="0.05" value="1">
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-label">Colors</div>
+        <div class="color-grid">
+          <div class="color-item">
+            <label>Bubble</label>
+            <input type="color" id="p-bg" value="#ffffff">
+          </div>
+          <div class="color-item">
+            <label>Border</label>
+            <input type="color" id="p-border" value="#222222">
+          </div>
+          <div class="color-item">
+            <label>Text</label>
+            <input type="color" id="p-textcol" value="#000000">
+          </div>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-label">Bubble Style</div>
+        <div class="style-grid" id="style-grid">
+          <button class="style-btn active" data-style="speech">Speech</button>
+          <button class="style-btn" data-style="thought">Thought</button>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-label">Tail</div>
+        <div class="tail-grid" id="tail-grid">
+          <button class="tail-btn" data-tail="top-left">&#8598;</button>
+          <button class="tail-btn" data-tail="top-center">&#8593;</button>
+          <button class="tail-btn" data-tail="top-right">&#8599;</button>
+          <button class="tail-btn active" data-tail="bottom-left">&#8601;</button>
+          <button class="tail-btn" data-tail="bottom-center">&#8595;</button>
+          <button class="tail-btn" data-tail="bottom-right">&#8600;</button>
+          <button class="tail-btn wide" data-tail="none">No tail</button>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <button class="btn btn-danger" id="p-delete">Delete Bubble</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── state ──────────────────────────────────────────────────────────────────
+  const bubbles = [];
+  let selectedId = null;
+  let nextId = 1;
+  let drag = null; // { id, startX, startY, origX, origY }
+
+  // ── dom ────────────────────────────────────────────────────────────────────
+  const fileInput = document.getElementById('file-input');
+  const uploadBtn = document.getElementById('upload-btn');
+  const addBtn = document.getElementById('add-btn');
+  const downloadBtn = document.getElementById('download-btn');
+  const uploadPlaceholder = document.getElementById('upload-placeholder');
+  const canvasContainer = document.getElementById('canvas-container');
+  const baseImage = document.getElementById('base-image');
+  const bubblesLayer = document.getElementById('bubbles-layer');
+  const sbEmpty = document.getElementById('sb-empty');
+  const sbEditor = document.getElementById('sb-editor');
+  const pText = document.getElementById('p-text');
+  const pFontsize = document.getElementById('p-fontsize');
+  const vFs = document.getElementById('v-fs');
+  const pScale = document.getElementById('p-scale');
+  const vScale = document.getElementById('v-scale');
+  const pBg = document.getElementById('p-bg');
+  const pBorder = document.getElementById('p-border');
+  const pTextcol = document.getElementById('p-textcol');
+  const tailGrid = document.getElementById('tail-grid');
+  const pDelete = document.getElementById('p-delete');
+
+  // ── upload ─────────────────────────────────────────────────────────────────
+  uploadBtn.addEventListener('click', () => fileInput.click());
+  uploadPlaceholder.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    baseImage.onload = () => {
+      uploadPlaceholder.style.display = 'none';
+      canvasContainer.style.display = 'inline-block';
+      addBtn.disabled = false;
+      downloadBtn.disabled = false;
+    };
+    baseImage.src = URL.createObjectURL(file);
+  });
+
+  // ── add bubble ─────────────────────────────────────────────────────────────
+  addBtn.addEventListener('click', () => {
+    const id = nextId++;
+    const b = {
+      id,
+      x: 40 + Math.round(Math.random() * 80),
+      y: 30 + Math.round(Math.random() * 50),
+      text: 'Hello!',
+      fontSize: 16,
+      scale: 1,
+      bgColor: '#ffffff',
+      borderColor: '#222222',
+      textColor: '#000000',
+      tailDir: 'bottom-left',
+      style: 'speech',
+    };
+    bubbles.push(b);
+    renderBubble(b);
+    selectBubble(id);
+  });
+
+  // ── render bubble element ──────────────────────────────────────────────────
+  function renderBubble(b) {
+    const old = document.getElementById(`b${b.id}`);
+    if (old) old.remove();
+
+    const wrap = document.createElement('div');
+    wrap.className = 'speech-bubble';
+    if (b.style === 'thought') wrap.classList.add('thought-style');
+    wrap.id = `b${b.id}`;
+    wrap.style.left = b.x + 'px';
+    wrap.style.top = b.y + 'px';
+    wrap.style.transform = `scale(${b.scale})`;
+    wrap.style.transformOrigin = 'top left';
+    if (selectedId === b.id) wrap.classList.add('selected');
+
+    const body = document.createElement('div');
+    body.className = 'bubble-body';
+    body.style.fontSize = b.fontSize + 'px';
+    body.style.color = b.textColor;
+
+    if (b.style !== 'thought') {
+      body.style.backgroundColor = b.bgColor;
+      body.style.borderColor = b.borderColor;
+    }
+
+    // tail (speech only — thought tail is part of the cloud SVG)
+    if (b.tailDir !== 'none' && b.style !== 'thought') {
+      const { outer, inner } = makeTailElements(b);
+      body.appendChild(outer);
+      body.appendChild(inner);
+    }
+
+    // text node
+    body.appendChild(document.createTextNode(b.text));
+
+    // delete button
+    const del = document.createElement('button');
+    del.className = 'bubble-del';
+    del.textContent = '×';
+    del.title = 'Delete';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteBubble(b.id);
+    });
+
+    wrap.appendChild(body);
+    wrap.appendChild(del);
+    bubblesLayer.appendChild(wrap);
+
+    if (b.style === 'thought') updateCloudSvg(b);
+
+    // drag
+    wrap.addEventListener('mousedown', (e) => {
+      if (e.target === del) return;
+      e.preventDefault();
+      e.stopPropagation();
+      selectBubble(b.id);
+      drag = { id: b.id, startX: e.clientX, startY: e.clientY, origX: b.x, origY: b.y };
+    });
+
+    // touch drag
+    wrap.addEventListener('touchstart', (e) => {
+      if (e.target === del) return;
+      e.preventDefault();
+      selectBubble(b.id);
+      const t = e.touches[0];
+      drag = { id: b.id, startX: t.clientX, startY: t.clientY, origX: b.x, origY: b.y };
+    }, { passive: false });
+  }
+
+  // ── CSS triangle tail elements ─────────────────────────────────────────────
+  // outer  = border-color triangle
+  // inner  = bg-color triangle (slightly smaller, shifted to create border effect)
+  function makeTailElements(b) {
+    const TH = 16; // tail height px
+    const TW = 9;  // tail half-width px
+    const OL = 16; // left/right offset from edge px
+    const BW = 2;  // inset for inner triangle
+
+    const outer = document.createElement('div');
+    const inner = document.createElement('div');
+    outer.className = 'bubble-tail-outer';
+    inner.className = 'bubble-tail-inner';
+    inner.style.zIndex = '1';
+
+    const dir = b.tailDir;
+    const isBottom = dir.startsWith('bottom');
+    const isTop = dir.startsWith('top');
+
+    if (isBottom) {
+      // pointing down from bubble bottom
+      setTriangle(outer, 'down', TW, TH, b.borderColor);
+      setTriangle(inner, 'down', TW - BW, TH - BW, b.bgColor);
+      outer.style.top = '100%';
+      inner.style.top = `calc(100% - ${BW}px)`;
+    } else {
+      // pointing up from bubble top
+      setTriangle(outer, 'up', TW, TH, b.borderColor);
+      setTriangle(inner, 'up', TW - BW, TH - BW, b.bgColor);
+      outer.style.bottom = '100%';
+      inner.style.bottom = `calc(100% - ${BW}px)`;
+    }
+
+    const side = dir.endsWith('left') ? 'left'
+      : dir.endsWith('right') ? 'right'
+      : 'center';
+
+    if (side === 'left') {
+      outer.style.left = OL + 'px';
+      inner.style.left = (OL + BW) + 'px';
+    } else if (side === 'right') {
+      outer.style.right = OL + 'px';
+      inner.style.right = (OL + BW) + 'px';
+    } else {
+      outer.style.left = '50%';
+      outer.style.marginLeft = -TW + 'px';
+      inner.style.left = '50%';
+      inner.style.marginLeft = -(TW - BW) + 'px';
+    }
+
+    return { outer, inner };
+  }
+
+  // Angle (radians) from bubble center toward tail, in SVG coords (y-down).
+  // right=0, down=π/2, left=π, up=-π/2
+  const CLOUD_DIR_ANGLES = {
+    'top-left':      -Math.PI * 0.75,
+    'top-center':    -Math.PI / 2,
+    'top-right':     -Math.PI / 4,
+    'bottom-left':    Math.PI * 0.75,
+    'bottom-center':  Math.PI / 2,
+    'bottom-right':   Math.PI / 4,
+  };
+
+  // Returns cloud + tail circle positions in LOCAL coords (cloud center = origin).
+  function computeCloudCircles(bodyW, bodyH, tailDir) {
+    const rx = bodyW / 2;
+    const ry = bodyH / 2;
+    const circ = Math.PI * (3*(rx+ry) - Math.sqrt((3*rx+ry)*(rx+3*ry)));
+    const circleCount = Math.max(8, Math.round(circ / (Math.min(rx, ry) * 0.9)));
+    const cr = (circ / circleCount) * 0.68;
+
+    const cloudCircles = [];
+    for (let i = 0; i < circleCount; i++) {
+      const angle = (2 * Math.PI * i) / circleCount - Math.PI / 2;
+      const variation = 1 + 0.06 * Math.sin(i * 2.7 + 0.5);
+      cloudCircles.push({
+        x: rx * Math.cos(angle),
+        y: ry * Math.sin(angle),
+        r: cr * variation
+      });
+    }
+
+    const tailCircles = [];
+    if (tailDir && tailDir !== 'none') {
+      const angle = CLOUD_DIR_ANGLES[tailDir] ?? (Math.PI / 2);
+      const startX = rx * Math.cos(angle);
+      const startY = ry * Math.sin(angle);
+      const tailLength = Math.max(rx, ry) * 0.9;
+      const endX = startX + Math.cos(angle) * tailLength;
+      const endY = startY + Math.sin(angle) * tailLength;
+      let r = cr * 0.52;
+      for (let i = 1; i <= 3; i++) {
+        const t = i / 3.5;
+        tailCircles.push({ x: startX + (endX - startX) * t, y: startY + (endY - startY) * t, r });
+        r *= 0.55;
+      }
+    }
+
+    return { cloudCircles, tailCircles, rx, ry, cr };
+  }
+
+  // Builds an absolutely-positioned SVG element for the thought bubble.
+  // Uses layered filled+stroked circles (classic comic-book cloud look).
+  function buildCloudSvg(b, bodyW, bodyH) {
+    const { cloudCircles, tailCircles, rx, ry } = computeCloudCircles(bodyW, bodyH, b.tailDir);
+    const all = [...cloudCircles, ...tailCircles];
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const c of all) {
+      minX = Math.min(minX, c.x - c.r);
+      minY = Math.min(minY, c.y - c.r);
+      maxX = Math.max(maxX, c.x + c.r);
+      maxY = Math.max(maxY, c.y + c.r);
+    }
+
+    const pad = 3;
+    const dx = -minX + pad;
+    const dy = -minY + pad;
+    const svgW = maxX - minX + pad * 2;
+    const svgH = maxY - minY + pad * 2;
+
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'cloud-svg');
+    svg.setAttribute('width', Math.ceil(svgW));
+    svg.setAttribute('height', Math.ceil(svgH));
+    svg.setAttribute('viewBox', `0 0 ${svgW.toFixed(1)} ${svgH.toFixed(1)}`);
+    svg.style.left = (bodyW / 2 - dx).toFixed(1) + 'px';
+    svg.style.top  = (bodyH / 2 - dy).toFixed(1) + 'px';
+
+    const mk = (tag, attrs) => {
+      const el = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      return el;
+    };
+    const cx = c => (c.x + dx).toFixed(1);
+    const cy = c => (c.y + dy).toFixed(1);
+    const cr = c => c.r.toFixed(1);
+    const fill = b.bgColor, stroke = b.borderColor;
+    const innerRx = (rx * 0.84).toFixed(1), innerRy = (ry * 0.84).toFixed(1);
+    const ocx = dx.toFixed(1), ocy = dy.toFixed(1);
+
+    // Layer 1: all circles filled (solid interior + tail)
+    for (const c of all)
+      svg.appendChild(mk('circle', { cx: cx(c), cy: cy(c), r: cr(c), fill, stroke: 'none' }));
+    // Layer 2: inner ellipse fill before stroking
+    svg.appendChild(mk('ellipse', { cx: ocx, cy: ocy, rx: innerRx, ry: innerRy, fill, stroke: 'none' }));
+    // Layer 3: all circles stroked (bumpy outline)
+    for (const c of all)
+      svg.appendChild(mk('circle', { cx: cx(c), cy: cy(c), r: cr(c), fill: 'none', stroke, 'stroke-width': '2.5' }));
+    // Layer 4: inner ellipse fill again (erase interior stroke crossings)
+    svg.appendChild(mk('ellipse', { cx: ocx, cy: ocy, rx: innerRx, ry: innerRy, fill, stroke: 'none' }));
+    // Layer 5: smaller cloud circles to clean up inter-bump seams
+    for (const c of cloudCircles)
+      svg.appendChild(mk('circle', { cx: cx(c), cy: cy(c), r: (c.r * 0.6).toFixed(1), fill, stroke: 'none' }));
+
+    return svg;
+  }
+
+  function updateCloudSvg(b) {
+    const bodyEl = document.querySelector(`#b${b.id} .bubble-body`);
+    if (!bodyEl) return;
+    const existing = bodyEl.querySelector('.cloud-svg');
+    if (existing) existing.remove();
+    bodyEl.appendChild(buildCloudSvg(b, bodyEl.offsetWidth, bodyEl.offsetHeight));
+  }
+
+  function setTriangle(el, direction, halfW, height, color) {
+    el.style.borderLeft = `${halfW}px solid transparent`;
+    el.style.borderRight = `${halfW}px solid transparent`;
+    if (direction === 'down') {
+      el.style.borderTop = `${height}px solid ${color}`;
+    } else {
+      el.style.borderBottom = `${height}px solid ${color}`;
+    }
+  }
+
+  // ── select / deselect ──────────────────────────────────────────────────────
+  function selectBubble(id) {
+    if (selectedId !== null) {
+      const prev = document.getElementById(`b${selectedId}`);
+      if (prev) prev.classList.remove('selected');
+    }
+    selectedId = id;
+    const el = document.getElementById(`b${id}`);
+    if (el) el.classList.add('selected');
+
+    const b = getBubble(id);
+    if (!b) return;
+    sbEmpty.style.display = 'none';
+    sbEditor.style.display = 'block';
+    pText.value = b.text;
+    pFontsize.value = b.fontSize;
+    vFs.textContent = b.fontSize;
+    pScale.value = b.scale;
+    vScale.textContent = b.scale.toFixed(2);
+    pBg.value = b.bgColor;
+    pBorder.value = b.borderColor;
+    pTextcol.value = b.textColor;
+    setActiveTailBtn(b.tailDir);
+    setActiveStyleBtn(b.style || 'speech');
+  }
+
+  function deselect() {
+    if (selectedId !== null) {
+      const el = document.getElementById(`b${selectedId}`);
+      if (el) el.classList.remove('selected');
+    }
+    selectedId = null;
+    sbEditor.style.display = 'none';
+    sbEmpty.style.display = 'block';
+  }
+
+  canvasContainer.addEventListener('mousedown', (e) => {
+    if (e.target === canvasContainer || e.target === bubblesLayer
+      || e.target === baseImage) {
+      deselect();
+    }
+  });
+
+  // ── delete ─────────────────────────────────────────────────────────────────
+  function deleteBubble(id) {
+    const el = document.getElementById(`b${id}`);
+    if (el) el.remove();
+    const idx = bubbles.findIndex(b => b.id === id);
+    if (idx !== -1) bubbles.splice(idx, 1);
+    if (selectedId === id) {
+      selectedId = null;
+      sbEditor.style.display = 'none';
+      sbEmpty.style.display = 'block';
+    }
+  }
+
+  pDelete.addEventListener('click', () => {
+    if (selectedId !== null) deleteBubble(selectedId);
+  });
+
+  // ── drag ───────────────────────────────────────────────────────────────────
+  document.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+  document.addEventListener('mouseup', () => { drag = null; });
+  document.addEventListener('touchmove', (e) => {
+    if (!drag) return;
+    e.preventDefault();
+    moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+  document.addEventListener('touchend', () => { drag = null; });
+
+  function moveDrag(cx, cy) {
+    if (!drag) return;
+    const b = getBubble(drag.id);
+    if (!b) return;
+    b.x = drag.origX + (cx - drag.startX);
+    b.y = drag.origY + (cy - drag.startY);
+    const el = document.getElementById(`b${drag.id}`);
+    if (el) {
+      el.style.left = b.x + 'px';
+      el.style.top = b.y + 'px';
+    }
+  }
+
+  // ── sidebar listeners ──────────────────────────────────────────────────────
+  function withSel(fn) {
+    const b = getBubble(selectedId);
+    if (!b) return;
+    fn(b);
+    renderBubble(b);
+  }
+
+  pText.addEventListener('input', () => withSel(b => { b.text = pText.value; }));
+
+  pFontsize.addEventListener('input', () => {
+    vFs.textContent = pFontsize.value;
+    withSel(b => { b.fontSize = parseInt(pFontsize.value, 10); });
+  });
+
+  pScale.addEventListener('input', () => {
+    const v = parseFloat(pScale.value);
+    vScale.textContent = v.toFixed(2);
+    withSel(b => { b.scale = v; });
+  });
+
+  pBg.addEventListener('input', () => withSel(b => { b.bgColor = pBg.value; }));
+  pBorder.addEventListener('input', () => withSel(b => { b.borderColor = pBorder.value; }));
+  pTextcol.addEventListener('input', () => withSel(b => { b.textColor = pTextcol.value; }));
+
+  tailGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tail-btn');
+    if (!btn) return;
+    const dir = btn.dataset.tail;
+    setActiveTailBtn(dir);
+    withSel(b => { b.tailDir = dir; });
+  });
+
+  function setActiveTailBtn(dir) {
+    tailGrid.querySelectorAll('.tail-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tail === dir);
+    });
+  }
+
+  function setActiveStyleBtn(style) {
+    document.querySelectorAll('.style-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.style === style);
+    });
+  }
+
+  document.getElementById('style-grid').addEventListener('click', (e) => {
+    const btn = e.target.closest('.style-btn');
+    if (!btn) return;
+    setActiveStyleBtn(btn.dataset.style);
+    withSel(b => { b.style = btn.dataset.style; });
+  });
+
+  // ── helpers ────────────────────────────────────────────────────────────────
+  function getBubble(id) {
+    return bubbles.find(b => b.id === id) || null;
+  }
+
+  // ── canvas export ──────────────────────────────────────────────────────────
+  downloadBtn.addEventListener('click', () => {
+    const canvas = buildExportCanvas();
+    const a = document.createElement('a');
+    a.download = 'speech-bubbles.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  });
+
+  function buildExportCanvas() {
+    const natW = baseImage.naturalWidth;
+    const natH = baseImage.naturalHeight;
+    const dispW = baseImage.width;
+    const ratio = natW / dispW;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = natW;
+    canvas.height = natH;
+    const ctx = canvas.getContext('2d');
+
+    ctx.drawImage(baseImage, 0, 0, natW, natH);
+
+    const imgRect = baseImage.getBoundingClientRect();
+
+    for (const b of bubbles) {
+      const bodyEl = document.querySelector(`#b${b.id} .bubble-body`);
+      if (!bodyEl) continue;
+      const r = bodyEl.getBoundingClientRect();
+      const bx = (r.left - imgRect.left) * ratio;
+      const by = (r.top - imgRect.top) * ratio;
+      const bw = r.width * ratio;
+      const bh = r.height * ratio;
+      drawBubble(ctx, b, bx, by, bw, bh, ratio);
+    }
+
+    return canvas;
+  }
+
+  function drawBubble(ctx, b, bx, by, bw, bh, ratio) {
+    const s = b.scale;
+    const lineW = 2.5 * ratio * s;
+
+    if (b.style === 'thought') {
+      drawThoughtBubble(ctx, b, bx, by, bw, bh, ratio, s, lineW);
+    } else {
+      ctx.save();
+      ctx.beginPath();
+      roundRectPath(ctx, bx, by, bw, bh, 14 * ratio * s);
+      ctx.fillStyle = b.bgColor;
+      ctx.fill();
+      ctx.lineWidth = lineW;
+      ctx.strokeStyle = b.borderColor;
+      ctx.stroke();
+      ctx.restore();
+
+      if (b.tailDir !== 'none') {
+        drawTail(ctx, b, bx, by, bw, bh, ratio, s, lineW);
+      }
+    }
+
+    // text
+    drawText(ctx, b, bx, by, bw, bh, ratio, s);
+  }
+
+  function drawThoughtBubble(ctx, b, bx, by, bw, bh, ratio, s, lineW) {
+    const sr = s * ratio;
+    const { cloudCircles, tailCircles, rx, ry } = computeCloudCircles(bw / sr, bh / sr, b.tailDir);
+    const all = [...cloudCircles, ...tailCircles];
+    const ocx = bx + bw / 2, ocy = by + bh / 2;
+    const toC = c => ({ x: ocx + c.x * sr, y: ocy + c.y * sr, r: c.r * sr });
+    const canvasAll = all.map(toC);
+    const canvasCloud = cloudCircles.map(toC);
+    const fill = b.bgColor, stroke = b.borderColor;
+    const irx = rx * sr * 0.84, iry = ry * sr * 0.84;
+
+    ctx.save();
+    // Layer 1: fill all circles
+    for (const c of canvasAll) {
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+      ctx.fillStyle = fill; ctx.fill();
+    }
+    // Layer 2: inner ellipse fill
+    ctx.beginPath(); ctx.ellipse(ocx, ocy, irx, iry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = fill; ctx.fill();
+    // Layer 3: stroke all circles
+    ctx.lineWidth = lineW; ctx.strokeStyle = stroke;
+    for (const c of canvasAll) {
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.stroke();
+    }
+    // Layer 4: inner ellipse fill (erase interior stroke crossings)
+    ctx.beginPath(); ctx.ellipse(ocx, ocy, irx, iry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = fill; ctx.fill();
+    // Layer 5: smaller cloud circles to clean up inter-bump seams
+    for (const c of canvasCloud) {
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r * 0.6, 0, Math.PI * 2);
+      ctx.fillStyle = fill; ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawTail(ctx, b, bx, by, bw, bh, ratio, s, lineW) {
+    const TH = 16 * ratio * s;
+    const TW = 9 * ratio * s;
+    const OL = 16 * ratio * s;
+    const dir = b.tailDir;
+    const isBottom = dir.startsWith('bottom');
+    const edgeY = isBottom ? by + bh : by;
+
+    const side = dir.endsWith('left') ? 'left'
+      : dir.endsWith('right') ? 'right'
+      : 'center';
+
+    let tipX, tipY, baseL, baseR;
+
+    if (side === 'left') {
+      baseL = bx + OL;
+      baseR = bx + OL + TW * 2;
+      tipX = bx + OL + TW * 0.5;
+    } else if (side === 'right') {
+      baseL = bx + bw - OL - TW * 2;
+      baseR = bx + bw - OL;
+      tipX = bx + bw - OL - TW * 0.5;
+    } else {
+      baseL = bx + bw / 2 - TW;
+      baseR = bx + bw / 2 + TW;
+      tipX = bx + bw / 2;
+    }
+
+    tipY = isBottom ? edgeY + TH : edgeY - TH;
+
+    ctx.save();
+
+    // fill triangle in bg color
+    ctx.beginPath();
+    ctx.moveTo(baseL, edgeY);
+    ctx.lineTo(tipX, tipY);
+    ctx.lineTo(baseR, edgeY);
+    ctx.closePath();
+    ctx.fillStyle = b.bgColor;
+    ctx.fill();
+
+    // erase the bubble body border at the tail base
+    ctx.beginPath();
+    ctx.moveTo(baseL, edgeY);
+    ctx.lineTo(baseR, edgeY);
+    ctx.lineWidth = lineW + 1;
+    ctx.strokeStyle = b.bgColor;
+    ctx.stroke();
+
+    // draw tail outline (two slanted sides only)
+    ctx.beginPath();
+    ctx.moveTo(baseL, edgeY);
+    ctx.lineTo(tipX, tipY);
+    ctx.lineTo(baseR, edgeY);
+    ctx.lineWidth = lineW;
+    ctx.strokeStyle = b.borderColor;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawText(ctx, b, bx, by, bw, bh, ratio, s) {
+    const fontSize = b.fontSize * ratio * s;
+    const padding = 14 * ratio * s;
+    const maxW = bw - padding * 2;
+
+    ctx.save();
+    ctx.font = `${fontSize}px "Comic Sans MS", "Chalkboard SE", cursive`;
+    ctx.fillStyle = b.textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const lines = wrapText(ctx, b.text, maxW);
+    const lineH = fontSize * 1.4;
+    const totalH = lines.length * lineH;
+    const startY = by + bh / 2 - totalH / 2 + lineH / 2;
+
+    lines.forEach((line, i) => {
+      ctx.fillText(line, bx + bw / 2, startY + i * lineH);
+    });
+    ctx.restore();
+  }
+
+  function wrapText(ctx, text, maxWidth) {
+    const result = [];
+    for (const para of text.split('\n')) {
+      if (!para) { result.push(''); continue; }
+      const words = para.split(' ');
+      let line = '';
+      for (const word of words) {
+        const test = line ? line + ' ' + word : word;
+        if (ctx.measureText(test).width <= maxWidth) {
+          line = test;
+        } else {
+          if (line) result.push(line);
+          line = word;
+        }
+      }
+      if (line) result.push(line);
+    }
+    return result.length ? result : [''];
+  }
+
+  function roundRectPath(ctx, x, y, w, h, r) {
+    if (ctx.roundRect) {
+      ctx.roundRect(x, y, w, h, r);
+      return;
+    }
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+</script>
+</body>
+</html>
