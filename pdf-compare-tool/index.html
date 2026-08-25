@@ -122,7 +122,7 @@
   .panel{flex:1; display:flex; flex-direction:column; min-width:0; border-right:1px solid var(--line);}
   .panel:last-child{border-right:none;}
   .panel-label{
-    padding:6px 14px; font-size:11px; color:var(--muted); font-family:var(--mono);
+    padding:6px 14px; font-size:12px; color:var(--text); font-family:var(--mono);
     border-bottom:1px solid var(--line); flex-shrink:0; background:var(--panel);
   }
   .scrollArea{flex:1; overflow-y:auto; overflow-x:auto; background:#0d0e11; padding:16px; }
@@ -247,11 +247,11 @@
     </div>
     <div class="panels" id="panelsSplit">
       <div class="panel">
-        <div class="panel-label">BEFORE — master</div>
+        <div class="panel-label" id="panelLabelBefore">BEFORE</div>
         <div class="scrollArea" id="scrollBefore"></div>
       </div>
       <div class="panel">
-        <div class="panel-label">AFTER — branch</div>
+        <div class="panel-label" id="panelLabelAfter">AFTER</div>
         <div class="scrollArea" id="scrollAfter"></div>
       </div>
     </div>
@@ -338,7 +338,7 @@ el('compareBtn').addEventListener('click', () => {
   const b = state.picked.before, a = state.picked.after;
   if (!b || !a) return;
   const name = b.name === a.name ? b.name : b.name + ' ↔ ' + a.name;
-  start([{ name, before: fileSource(b), after: fileSource(a), status: 'both' }],
+  start([{ name, beforeName: b.name, afterName: a.name, before: fileSource(b), after: fileSource(a), status: 'both' }],
         b.name + ' ↔ ' + a.name);
 });
 
@@ -397,6 +397,8 @@ async function loadZip(file) {
 
   const pairs = names.map(name => ({
     name,
+    beforeName: before[name] ? name : null,
+    afterName: after[name] ? name : null,
     before: before[name] ? zipSource(before[name]) : null,
     after: after[name] ? zipSource(after[name]) : null,
     status: (before[name] && after[name]) ? 'both' : (before[name] ? 'removed' : 'added')
@@ -575,9 +577,12 @@ async function renderOverlay(pair) {
 }
 
 function updateOverlayLabel() {
+  const pair = state.pairs[state.currentIndex];
+  const beforeName = (pair && pair.beforeName) || '—';
+  const afterName = (pair && pair.afterName) || '—';
   el('overlayLabel').textContent = state.diff
     ? 'DIFFERENCE — black means both sides match, bright means they differ'
-    : '◀ BEFORE (master)  —  drag the handle  —  AFTER (branch) ▶';
+    : '◀ BEFORE — ' + beforeName + '   —   drag the handle   —   AFTER — ' + afterName + ' ▶';
 }
 
 const handle = el('overlayHandle');
@@ -619,6 +624,8 @@ async function renderPass() {
   const pair = state.pairs[state.currentIndex];
   if (!pair) return;
   el('currentName').textContent = pair.name + ' (' + (state.currentIndex+1) + '/' + state.pairs.length + ')';
+  el('panelLabelBefore').textContent = 'BEFORE — ' + (pair.beforeName || 'missing');
+  el('panelLabelAfter').textContent = 'AFTER — ' + (pair.afterName || 'missing');
   el('prevBtn').disabled = state.currentIndex === 0;
   el('nextBtn').disabled = state.currentIndex === state.pairs.length - 1;
   el('zoomLabel').textContent = Math.round(state.zoom * 100) + '%';
