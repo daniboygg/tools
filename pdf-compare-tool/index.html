@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PDF Regression Review</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --bg: #14161a;
+    --panel: #1c1f25;
+    --panel-2: #23272e;
+    --line: #2e333c;
+    --text: #e8eaed;
+    --muted: #8b93a1;
+    --ok: #3ecf8e;
+    --issue: #e5586a;
+    --accent: #5b8def;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+  }
+  header{
+    padding:14px 20px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:16px; flex-shrink:0;
+  }
+  header h1{font-size:15px; font-weight:600; margin:0; letter-spacing:.2px;}
+  header .sub{font-size:12px; color:var(--muted); font-family:var(--mono);}
+  #dropzone{
+    flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:18px;
+  }
+  #dropzone .box{
+    border:1.5px dashed var(--line); border-radius:10px; padding:48px 60px;
+    text-align:center; max-width:640px; transition:border-color .15s, background .15s;
+  }
+  #dropzone .box.drag{border-color:var(--accent); background:rgba(91,141,239,.06);}
+  #dropzone .box h2{font-size:16px; margin:0 0 8px;}
+  #dropzone .box p{font-size:13px; color:var(--muted); line-height:1.6; margin:6px 0;}
+  #dropzone code{background:var(--panel-2); padding:2px 6px; border-radius:4px; font-family:var(--mono); font-size:12px;}
+  #dropzone pre{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:14px 16px;
+    text-align:left; font-size:12px; font-family:var(--mono); color:var(--muted); overflow-x:auto; margin-top:14px;
+  }
+  input[type=file]{display:none;}
+  .browseBtn{
+    background:var(--accent); color:#fff; border:none; padding:9px 18px; border-radius:6px;
+    font-size:13px; font-weight:600; cursor:pointer; margin-top:16px;
+  }
+  .browseBtn:hover{filter:brightness(1.08);}
+  .browseBtn:disabled{opacity:.35; cursor:default; filter:none;}
+  .modeTabs{display:flex; gap:6px; justify-content:center; margin-bottom:22px;}
+  .modeTabs button{
+    background:var(--panel-2); color:var(--muted); border:1px solid var(--line);
+    border-radius:6px; padding:7px 14px; font-size:12.5px; cursor:pointer;
+  }
+  .modeTabs button:hover{color:var(--text);}
+  .modeTabs button.active{
+    color:var(--text); border-color:var(--accent); background:rgba(91,141,239,.12);
+  }
+  .pane{display:none;}
+  .pane.active{display:block;}
+  .slots{display:flex; gap:14px; margin:18px 0 4px;}
+  .slot{
+    flex:1; min-width:0; border:1.5px dashed var(--line); border-radius:8px;
+    padding:20px 14px; cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  .slot:hover, .slot.drag{border-color:var(--accent); background:rgba(91,141,239,.06);}
+  .slot.filled{border-style:solid; border-color:rgba(62,207,142,.45);}
+  .slot .slotLabel{
+    font-size:10.5px; color:var(--muted); font-family:var(--mono); letter-spacing:.6px;
+  }
+  .slot .slotFile{font-size:12.5px; margin-top:8px; color:var(--muted); word-break:break-all;}
+  .slot.filled .slotFile{color:var(--ok);}
+  #main{flex:1; display:flex; min-height:0;}
+  #sidebar{
+    width:260px; border-right:1px solid var(--line); overflow-y:auto; flex-shrink:0;
+    background:var(--panel);
+  }
+  #sidebar .progress{
+    padding:12px 14px; border-bottom:1px solid var(--line); font-size:12px; color:var(--muted);
+  }
+  #sidebar .progress .bar{
+    height:4px; background:var(--panel-2); border-radius:2px; margin-top:8px; overflow:hidden;
+  }
+  #sidebar .progress .bar div{height:100%; background:var(--ok); width:0%; transition:width .2s;}
+  #docList{list-style:none; margin:0; padding:6px;}
+  #docList li{
+    padding:9px 10px; border-radius:6px; cursor:pointer; font-size:12.5px;
+    display:flex; align-items:center; gap:8px; color:var(--text);
+  }
+  #docList li:hover{background:var(--panel-2);}
+  #docList li.active{background:rgba(91,141,239,.15); outline:1px solid rgba(91,141,239,.4);}
+  #docList li .dot{width:8px; height:8px; border-radius:50%; background:var(--muted); flex-shrink:0;}
+  #docList li.status-ok .dot{background:var(--ok);}
+  #docList li.status-issue .dot{background:var(--issue);}
+  #docList li.status-added .dot{background:var(--accent);}
+  #docList li .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;}
+  #docList li .tag{font-size:9.5px; color:var(--muted); font-family:var(--mono);}
+  #viewer{flex:1; display:flex; flex-direction:column; min-width:0;}
+  .toolbar{
+    display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid var(--line);
+    flex-shrink:0; flex-wrap:wrap;
+  }
+  .toolbar .docname{font-size:13px; font-weight:600; margin-right:auto; font-family:var(--mono);}
+  .toolbar button{
+    background:var(--panel-2); color:var(--text); border:1px solid var(--line); border-radius:6px;
+    padding:6px 12px; font-size:12.5px; cursor:pointer; display:flex; align-items:center; gap:6px;
+  }
+  .toolbar button:hover{border-color:var(--accent);}
+  .toolbar button.primary-ok{color:var(--ok); border-color:rgba(62,207,142,.4);}
+  .toolbar button.primary-ok:hover{background:rgba(62,207,142,.1);}
+  .toolbar button.primary-issue{color:var(--issue); border-color:rgba(229,88,106,.4);}
+  .toolbar button.primary-issue:hover{background:rgba(229,88,106,.1);}
+  .toolbar button:disabled{opacity:.35; cursor:default;}
+  .toolbar .zoomgroup{display:flex; align-items:center; gap:4px; font-size:12px; color:var(--muted);}
+  .panels{flex:1; display:flex; min-height:0;}
+  .panel{flex:1; display:flex; flex-direction:column; min-width:0; border-right:1px solid var(--line);}
+  .panel:last-child{border-right:none;}
+  .panel-label{
+    padding:6px 14px; font-size:11px; color:var(--muted); font-family:var(--mono);
+    border-bottom:1px solid var(--line); flex-shrink:0; background:var(--panel);
+  }
+  .scrollArea{flex:1; overflow-y:auto; overflow-x:auto; background:#0d0e11; padding:16px; }
+  .scrollArea canvas{display:block; margin:0 auto 14px; box-shadow:0 0 0 1px var(--line); background:#fff;}
+  .missing-msg{color:var(--muted); text-align:center; padding:60px 20px; font-size:13px;}
+  .note-banner{
+    background:rgba(229,88,106,.08); border-bottom:1px solid rgba(229,88,106,.3); color:#f0a5af;
+    padding:8px 16px; font-size:12px; display:none;
+  }
+  .note-banner.show{display:block;}
+  #exportBtn{background:var(--panel-2);}
+  .toolbar button.active{color:var(--accent); border-color:var(--accent);}
+  /* --- overlay (swipe) view --- */
+  .overlayView{flex:1; display:none; flex-direction:column; min-width:0; min-height:0;}
+  .overlayWrap{position:relative; margin:0 auto; --split:50%;}
+  .pageStack{
+    position:relative; margin:0 auto 14px; background:#fff; isolation:isolate;
+    box-shadow:0 0 0 1px var(--line);
+  }
+  .pageStack canvas{position:absolute; top:0; left:0; margin:0; box-shadow:none;}
+  .pageStack canvas.layerAfter{clip-path:inset(0 0 0 var(--split));}
+  .diffMode .pageStack canvas.layerAfter{clip-path:none; mix-blend-mode:difference;}
+  #overlayHandle{
+    position:absolute; top:0; bottom:0; left:var(--split); width:26px;
+    margin-left:-13px; z-index:5; cursor:col-resize; touch-action:none;
+  }
+  #overlayHandle::before{
+    content:''; position:absolute; left:12px; top:0; bottom:0; width:2px;
+    background:var(--accent);
+  }
+  #overlayHandle .knob{
+    position:sticky; top:calc(50% - 13px); display:block; width:26px; height:26px;
+    border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px rgba(91,141,239,.22);
+  }
+  #overlayHandle .knob::after{
+    content:'⟺'; position:absolute; inset:0; display:flex; align-items:center;
+    justify-content:center; font-size:12px; color:#fff;
+  }
+  .diffMode #overlayHandle{display:none;}
+  ::-webkit-scrollbar{width:10px; height:10px;}
+  ::-webkit-scrollbar-thumb{background:#333844; border-radius:5px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PDF Regression Review</h1>
+  <span class="sub" id="headerSub">no file loaded</span>
+</header>
+
+<div id="dropzone">
+  <div class="box" id="dropBox">
+    <div class="modeTabs">
+      <button id="modeTwoBtn" class="active" data-mode="two">Two PDFs</button>
+      <button id="modeZipBtn" data-mode="zip">Comparison zip</button>
+    </div>
+
+    <div class="pane active" id="paneTwo">
+      <h2>Compare two PDF files</h2>
+      <p>
+        Pick one file for each side. You can also drop both files anywhere in this box.
+      </p>
+      <div class="slots">
+        <div class="slot" id="slotBefore">
+          <div class="slotLabel">BEFORE</div>
+          <div class="slotFile">click or drop a PDF</div>
+        </div>
+        <div class="slot" id="slotAfter">
+          <div class="slotLabel">AFTER</div>
+          <div class="slotFile">click or drop a PDF</div>
+        </div>
+      </div>
+      <button class="browseBtn" id="compareBtn" disabled>Compare</button>
+      <input type="file" id="beforeInput" accept=".pdf">
+      <input type="file" id="afterInput" accept=".pdf">
+    </div>
+
+    <div class="pane" id="paneZip">
+      <h2>Upload a comparison zip</h2>
+      <p>Structure the zip with two top-level folders. Files are paired by matching relative path/name.</p>
+      <pre>comparison.zip
+├── before/
+│   ├── meeting_standup.pdf
+│   └── meeting_retro.pdf
+└── after/
+    ├── meeting_standup.pdf
+    └── meeting_retro.pdf</pre>
+      <p>Files only present on one side are still shown, flagged as added/removed.</p>
+      <button class="browseBtn" id="browseBtn">Choose zip file</button>
+      <input type="file" id="fileInput" accept=".zip">
+    </div>
+  </div>
+</div>
+
+<div id="main" style="display:none;">
+  <aside id="sidebar">
+    <div class="progress">
+      <div id="progressText">0 / 0 reviewed</div>
+      <div class="bar"><div id="progressBar"></div></div>
+    </div>
+    <ul id="docList"></ul>
+  </aside>
+
+  <section id="viewer">
+    <div class="note-banner" id="noteBanner"></div>
+    <div class="toolbar">
+      <button id="prevBtn" title="Previous (←)">← Prev</button>
+      <button id="nextBtn" title="Next (→)">Next →</button>
+      <div class="docname" id="currentName">—</div>
+      <div class="zoomgroup">
+        <button id="zoomOut">−</button>
+        <span id="zoomLabel">100%</span>
+        <button id="zoomIn">+</button>
+      </div>
+      <button id="viewBtn" title="Switch view (V)">▥ Overlay</button>
+      <button id="diffBtn" title="Difference blend (D)">◐ Difference</button>
+      <button id="issueBtn" class="primary-issue" title="Flag (I)">⚑ Flag issue</button>
+      <button id="okBtn" class="primary-ok" title="Approve (O)">✓ Mark OK</button>
+      <button id="exportBtn" title="Download review report">⬇ Export report</button>
+      <button id="resetBtn" title="Load other files">↺ New</button>
+    </div>
+    <div class="panels" id="panelsSplit">
+      <div class="panel">
+        <div class="panel-label">BEFORE — master</div>
+        <div class="scrollArea" id="scrollBefore"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-label">AFTER — branch</div>
+        <div class="scrollArea" id="scrollAfter"></div>
+      </div>
+    </div>
+    <div class="overlayView" id="panelsOverlay">
+      <div class="panel-label" id="overlayLabel"></div>
+      <div class="scrollArea" id="scrollOverlay">
+        <div class="overlayWrap" id="overlayWrap">
+          <div id="overlayHandle"><span class="knob"></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const state = {
+  pairs: [],
+  currentIndex: 0,
+  decisions: {},   // name -> {status:'ok'|'issue', note, ts}
+  zoom: 1.1,
+  syncing: false,
+  view: 'split',   // 'split' | 'overlay'
+  split: 0.5,      // handle position in the overlay view, as a fraction
+  diff: false,     // difference blend instead of the swipe
+  picked: { before: null, after: null }   // File objects for the two-PDF mode
+};
+
+const el = id => document.getElementById(id);
+const dropBox = el('dropBox');
+const fileInput = el('fileInput');
+
+const isPdf = f => f.name.toLowerCase().endsWith('.pdf');
+const isZip = f => f.name.toLowerCase().endsWith('.zip');
+
+// A source wraps one PDF, whatever its origin, and caches the parsed document.
+const zipSource = entry => ({ load: () => entry.async('uint8array') });
+const fileSource = file => ({
+  load: async () => new Uint8Array(await file.arrayBuffer())
+});
+
+/* ---------- mode tabs ---------- */
+
+function setMode(mode) {
+  el('modeTwoBtn').classList.toggle('active', mode === 'two');
+  el('modeZipBtn').classList.toggle('active', mode === 'zip');
+  el('paneTwo').classList.toggle('active', mode === 'two');
+  el('paneZip').classList.toggle('active', mode === 'zip');
+}
+el('modeTwoBtn').addEventListener('click', () => setMode('two'));
+el('modeZipBtn').addEventListener('click', () => setMode('zip'));
+
+/* ---------- two-PDF mode ---------- */
+
+function setPicked(side, file) {
+  if (!file) return;
+  state.picked[side] = file;
+  const slot = el(side === 'before' ? 'slotBefore' : 'slotAfter');
+  slot.classList.add('filled');
+  slot.querySelector('.slotFile').textContent = file.name;
+  el('compareBtn').disabled = !(state.picked.before && state.picked.after);
+}
+
+[['slotBefore', 'beforeInput', 'before'], ['slotAfter', 'afterInput', 'after']]
+  .forEach(([slotId, inputId, side]) => {
+    const slot = el(slotId), input = el(inputId);
+    slot.addEventListener('click', () => input.click());
+    input.addEventListener('change', e => setPicked(side, e.target.files[0]));
+    ['dragover','dragenter'].forEach(evt => slot.addEventListener(evt, e => {
+      e.preventDefault(); e.stopPropagation(); slot.classList.add('drag');
+    }));
+    ['dragleave','drop'].forEach(evt => slot.addEventListener(evt, e => {
+      slot.classList.remove('drag');
+    }));
+    slot.addEventListener('drop', e => {
+      e.preventDefault(); e.stopPropagation();
+      const pdf = [...e.dataTransfer.files].find(f => isPdf(f));
+      if (pdf) setPicked(side, pdf);
+    });
+  });
+
+el('compareBtn').addEventListener('click', () => {
+  const b = state.picked.before, a = state.picked.after;
+  if (!b || !a) return;
+  const name = b.name === a.name ? b.name : b.name + ' ↔ ' + a.name;
+  start([{ name, before: fileSource(b), after: fileSource(a), status: 'both' }],
+        b.name + ' ↔ ' + a.name);
+});
+
+/* ---------- zip mode ---------- */
+
+el('browseBtn').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) loadZip(e.target.files[0]);
+});
+
+/* ---------- drop anywhere in the box ---------- */
+
+['dragover','dragenter'].forEach(evt => dropBox.addEventListener(evt, e => {
+  e.preventDefault(); dropBox.classList.add('drag');
+}));
+['dragleave','drop'].forEach(evt => dropBox.addEventListener(evt, e => {
+  e.preventDefault(); dropBox.classList.remove('drag');
+}));
+dropBox.addEventListener('drop', e => {
+  const files = [...e.dataTransfer.files];
+  const zip = files.find(isZip);
+  if (zip) { setMode('zip'); loadZip(zip); return; }
+  const pdfs = files.filter(isPdf);
+  if (pdfs.length === 0) return;
+  setMode('two');
+  if (pdfs.length > 1) {
+    setPicked('before', pdfs[0]);
+    setPicked('after', pdfs[1]);
+  } else {
+    setPicked(state.picked.before ? 'after' : 'before', pdfs[0]);
+  }
+});
+
+async function loadZip(file) {
+  el('headerSub').textContent = 'parsing ' + file.name + '...';
+  const buf = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(buf);
+
+  const before = {}, after = {};
+  zip.forEach((relPath, entry) => {
+    if (entry.dir) return;
+    if (!relPath.toLowerCase().endsWith('.pdf')) return;
+    const parts = relPath.split('/').filter(Boolean);
+    const top = (parts[0] || '').toLowerCase();
+    const rest = parts.slice(1).join('/') || parts[0];
+    if (top === 'before') before[rest] = entry;
+    else if (top === 'after') after[rest] = entry;
+  });
+
+  const names = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])).sort();
+  if (names.length === 0) {
+    alert("No PDFs found under 'before/' or 'after/' folders. Check the zip structure and try again.");
+    el('headerSub').textContent = 'no file loaded';
+    return;
+  }
+
+  const pairs = names.map(name => ({
+    name,
+    before: before[name] ? zipSource(before[name]) : null,
+    after: after[name] ? zipSource(after[name]) : null,
+    status: (before[name] && after[name]) ? 'both' : (before[name] ? 'removed' : 'added')
+  }));
+  start(pairs, file.name + ' — ' + names.length + ' document' + (names.length === 1 ? '' : 's'));
+}
+
+/* ---------- session start / reset ---------- */
+
+async function start(pairs, subtitle) {
+  state.pairs = pairs;
+  state.currentIndex = 0;
+  state.decisions = {};
+
+  el('headerSub').textContent = subtitle;
+  el('dropzone').style.display = 'none';
+  el('main').style.display = 'flex';
+  el('sidebar').style.display = pairs.length > 1 ? 'block' : 'none';
+
+  buildSidebar();
+  await renderCurrent();
+}
+
+el('resetBtn').addEventListener('click', () => {
+  state.pairs = [];
+  state.decisions = {};
+  state.picked = { before: null, after: null };
+  ['slotBefore', 'slotAfter'].forEach(id => {
+    const slot = el(id);
+    slot.classList.remove('filled');
+    slot.querySelector('.slotFile').textContent = 'click or drop a PDF';
+  });
+  el('compareBtn').disabled = true;
+  fileInput.value = el('beforeInput').value = el('afterInput').value = '';
+  el('scrollBefore').innerHTML = el('scrollAfter').innerHTML = '';
+  el('overlayWrap').querySelectorAll('.pageStack, .missing-msg').forEach(n => n.remove());
+  el('headerSub').textContent = 'no file loaded';
+  el('main').style.display = 'none';
+  el('dropzone').style.display = 'flex';
+});
+
+function buildSidebar() {
+  const list = el('docList');
+  list.innerHTML = '';
+  state.pairs.forEach((pair, i) => {
+    const li = document.createElement('li');
+    li.dataset.index = i;
+    const dot = document.createElement('div'); dot.className = 'dot';
+    const name = document.createElement('div'); name.className = 'name'; name.textContent = pair.name;
+    li.appendChild(dot); li.appendChild(name);
+    if (pair.status !== 'both') {
+      const tag = document.createElement('div');
+      tag.className = 'tag';
+      tag.textContent = pair.status === 'added' ? 'NEW' : 'REMOVED';
+      li.appendChild(tag);
+    }
+    li.addEventListener('click', () => { state.currentIndex = i; renderCurrent(); });
+    list.appendChild(li);
+  });
+  refreshSidebarStatuses();
+}
+
+function refreshSidebarStatuses() {
+  const items = el('docList').children;
+  for (let i = 0; i < items.length; i++) {
+    const li = items[i];
+    const pair = state.pairs[i];
+    const decision = state.decisions[pair.name];
+    li.classList.toggle('active', i === state.currentIndex);
+    li.classList.remove('status-ok', 'status-issue', 'status-added');
+    if (decision) {
+      li.classList.add(decision.status === 'ok' ? 'status-ok' : 'status-issue');
+    } else if (pair.status !== 'both') {
+      li.classList.add('status-added');
+    }
+  }
+  const reviewed = Object.keys(state.decisions).length;
+  const total = state.pairs.length;
+  el('progressText').textContent = reviewed + ' / ' + total + ' reviewed';
+  el('progressBar').style.width = total ? (reviewed / total * 100) + '%' : '0%';
+}
+
+// Parse once per file. A zoom change then only re-renders the canvases.
+async function getDoc(source) {
+  if (!source) return null;
+  if (!source.doc) {
+    const data = await source.load();
+    source.doc = await pdfjsLib.getDocument({ data }).promise;
+  }
+  return source.doc;
+}
+
+async function renderPageCanvas(doc, pageNum) {
+  const page = await doc.getPage(pageNum);
+  const viewport = page.getViewport({ scale: state.zoom });
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  // Paint the sheet white, so the difference blend reads 'equal' as black.
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  return canvas;
+}
+
+function missingMsg(text) {
+  const msg = document.createElement('div');
+  msg.className = 'missing-msg';
+  msg.textContent = text;
+  return msg;
+}
+
+async function renderPdfInto(container, source) {
+  container.innerHTML = '';
+  container.scrollTop = 0;
+  const doc = await getDoc(source);
+  if (!doc) {
+    container.appendChild(missingMsg('No file on this side'));
+    return;
+  }
+  for (let p = 1; p <= doc.numPages; p++) {
+    container.appendChild(await renderPageCanvas(doc, p));
+  }
+}
+
+/* ---------- overlay (swipe) view ---------- */
+
+// The split is kept as a fraction, so it survives a zoom change.
+function applySplit() {
+  const wrap = el('overlayWrap');
+  const width = parseFloat(wrap.style.width) || wrap.clientWidth;
+  wrap.style.setProperty('--split', (width * state.split) + 'px');
+}
+
+async function renderOverlay(pair) {
+  const wrap = el('overlayWrap');
+  wrap.querySelectorAll('.pageStack, .missing-msg').forEach(n => n.remove());
+  el('scrollOverlay').scrollTop = 0;
+
+  const [beforeDoc, afterDoc] = await Promise.all([
+    getDoc(pair.before), getDoc(pair.after)
+  ]);
+  if (!beforeDoc || !afterDoc) {
+    el('overlayHandle').style.display = 'none';
+    wrap.style.width = '';
+    wrap.appendChild(missingMsg('Overlay needs a file on both sides. Use the split view.'));
+    return;
+  }
+  el('overlayHandle').style.display = '';
+
+  // One stack per page index: before underneath, after clipped on top.
+  const pages = Math.max(beforeDoc.numPages, afterDoc.numPages);
+  const stacks = [];
+  let maxWidth = 0;
+  for (let p = 1; p <= pages; p++) {
+    const stack = document.createElement('div');
+    stack.className = 'pageStack';
+    let height = 0;
+    for (const [doc, cls] of [[beforeDoc, 'layerBefore'], [afterDoc, 'layerAfter']]) {
+      if (p > doc.numPages) continue;
+      const canvas = await renderPageCanvas(doc, p);
+      canvas.className = cls;
+      stack.appendChild(canvas);
+      maxWidth = Math.max(maxWidth, canvas.width);
+      height = Math.max(height, canvas.height);
+    }
+    stack.style.height = height + 'px';
+    stacks.push(stack);
+    wrap.appendChild(stack);
+  }
+  // A common width keeps every page, and the handle, on the same x axis.
+  wrap.style.width = maxWidth + 'px';
+  stacks.forEach(s => { s.style.width = maxWidth + 'px'; });
+  applySplit();
+}
+
+function updateOverlayLabel() {
+  el('overlayLabel').textContent = state.diff
+    ? 'DIFFERENCE — black means both sides match, bright means they differ'
+    : '◀ BEFORE (master)  —  drag the handle  —  AFTER (branch) ▶';
+}
+
+const handle = el('overlayHandle');
+let dragging = false;
+
+function splitFromEvent(e) {
+  const rect = el('overlayWrap').getBoundingClientRect();
+  const frac = (e.clientX - rect.left) / (rect.width || 1);
+  state.split = Math.min(1, Math.max(0, frac));
+  applySplit();
+}
+
+handle.addEventListener('pointerdown', e => {
+  dragging = true;
+  handle.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+handle.addEventListener('pointermove', e => { if (dragging) splitFromEvent(e); });
+handle.addEventListener('pointerup', e => {
+  dragging = false;
+  handle.releasePointerCapture(e.pointerId);
+});
+// Click anywhere on the page to move the handle there.
+el('overlayWrap').addEventListener('pointerdown', e => {
+  if (!e.target.closest('#overlayHandle')) splitFromEvent(e);
+});
+
+// Render passes are queued. Two passes at once would interleave their DOM
+// writes, and pdf.js cannot render the same page twice at the same time.
+let renderChain = Promise.resolve();
+function renderCurrent() {
+  renderChain = renderChain
+    .then(renderPass)
+    .catch(err => console.error('render failed', err));
+  return renderChain;
+}
+
+async function renderPass() {
+  const pair = state.pairs[state.currentIndex];
+  if (!pair) return;
+  el('currentName').textContent = pair.name + ' (' + (state.currentIndex+1) + '/' + state.pairs.length + ')';
+  el('prevBtn').disabled = state.currentIndex === 0;
+  el('nextBtn').disabled = state.currentIndex === state.pairs.length - 1;
+  el('zoomLabel').textContent = Math.round(state.zoom * 100) + '%';
+
+  const banner = el('noteBanner');
+  const existing = state.decisions[pair.name];
+  if (existing && existing.status === 'issue' && existing.note) {
+    banner.textContent = 'Flagged: ' + existing.note;
+    banner.classList.add('show');
+  } else {
+    banner.classList.remove('show');
+  }
+
+  const overlay = state.view === 'overlay';
+  el('panelsSplit').style.display = overlay ? 'none' : 'flex';
+  el('panelsOverlay').style.display = overlay ? 'flex' : 'none';
+  el('viewBtn').textContent = overlay ? '▤ Split view' : '▥ Overlay';
+  el('diffBtn').disabled = !overlay;
+  el('diffBtn').classList.toggle('active', overlay && state.diff);
+  el('overlayWrap').classList.toggle('diffMode', state.diff);
+  updateOverlayLabel();
+
+  if (overlay) {
+    await renderOverlay(pair);
+  } else {
+    await Promise.all([
+      renderPdfInto(el('scrollBefore'), pair.before),
+      renderPdfInto(el('scrollAfter'), pair.after)
+    ]);
+  }
+  refreshSidebarStatuses();
+}
+
+el('viewBtn').addEventListener('click', () => {
+  state.view = state.view === 'overlay' ? 'split' : 'overlay';
+  renderCurrent();
+});
+el('diffBtn').addEventListener('click', () => {
+  if (state.view !== 'overlay') return;
+  state.diff = !state.diff;
+  el('diffBtn').classList.toggle('active', state.diff);
+  el('overlayWrap').classList.toggle('diffMode', state.diff);
+  updateOverlayLabel();
+});
+
+function linkScroll(a, b) {
+  a.addEventListener('scroll', () => {
+    if (state.syncing) return;
+    state.syncing = true;
+    const denomA = (a.scrollHeight - a.clientHeight) || 1;
+    const frac = a.scrollTop / denomA;
+    const denomB = (b.scrollHeight - b.clientHeight) || 1;
+    b.scrollTop = frac * denomB;
+    state.syncing = false;
+  });
+}
+linkScroll(el('scrollBefore'), el('scrollAfter'));
+linkScroll(el('scrollAfter'), el('scrollBefore'));
+
+function navigate(delta) {
+  const next = state.currentIndex + delta;
+  if (next < 0 || next >= state.pairs.length) return;
+  state.currentIndex = next;
+  renderCurrent();
+}
+el('prevBtn').addEventListener('click', () => navigate(-1));
+el('nextBtn').addEventListener('click', () => navigate(1));
+
+function markOk() {
+  const pair = state.pairs[state.currentIndex];
+  state.decisions[pair.name] = { status: 'ok', note: '', ts: new Date().toISOString() };
+  refreshSidebarStatuses();
+  navigate(1);
+}
+function markIssue() {
+  const pair = state.pairs[state.currentIndex];
+  const note = prompt('Describe the issue (optional):', '') || '';
+  state.decisions[pair.name] = { status: 'issue', note, ts: new Date().toISOString() };
+  refreshSidebarStatuses();
+  renderCurrent();
+}
+el('okBtn').addEventListener('click', markOk);
+el('issueBtn').addEventListener('click', markIssue);
+
+el('zoomIn').addEventListener('click', () => { state.zoom = Math.min(state.zoom + 0.15, 3); renderCurrent(); });
+el('zoomOut').addEventListener('click', () => { state.zoom = Math.max(state.zoom - 0.15, 0.4); renderCurrent(); });
+
+document.addEventListener('keydown', e => {
+  if (el('main').style.display === 'none') return;
+  if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if (e.key === 'ArrowRight') navigate(1);
+  else if (e.key === 'ArrowLeft') navigate(-1);
+  else if (e.key.toLowerCase() === 'o') markOk();
+  else if (e.key.toLowerCase() === 'i') markIssue();
+  else if (e.key.toLowerCase() === 'v') el('viewBtn').click();
+  else if (e.key.toLowerCase() === 'd') el('diffBtn').click();
+});
+
+el('exportBtn').addEventListener('click', () => {
+  const rows = state.pairs.map(pair => {
+    const d = state.decisions[pair.name];
+    return {
+      document: pair.name,
+      side_status: pair.status,
+      review_status: d ? d.status : 'pending',
+      note: d ? d.note : '',
+      reviewed_at: d ? d.ts : ''
+    };
+  });
+  const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'pdf-review-report.json';
+  a.click();
+});
+</script>
+</body>
+</html>
