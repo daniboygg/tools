@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tree Visualizer</title>
+  <style>
+    :root {
+      --background-color: #f6f8fa;
+      --text-color: #24292e;
+      --muted-color: #6a737d;
+      --node-fill: #ffffff;
+      --node-fill-hover: #e8f1fb;
+      --node-stroke: #0366d6;
+      --edge-color: #959da5;
+      --spacing-small: 8px;
+      --spacing-medium: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica,
+        Arial, sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .hint {
+      padding: var(--spacing-small) var(--spacing-medium);
+      color: var(--muted-color);
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .hint button {
+      font: inherit;
+      color: var(--node-stroke);
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .canvas {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+    }
+
+    .canvas svg {
+      margin: auto;
+    }
+
+    .node {
+      cursor: pointer;
+    }
+
+    .node circle {
+      fill: var(--node-fill);
+      stroke: var(--node-stroke);
+      stroke-width: 2;
+    }
+
+    .node:hover circle {
+      fill: var(--node-fill-hover);
+    }
+
+    .node text {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 14px;
+      fill: var(--text-color);
+      text-anchor: middle;
+      dominant-baseline: central;
+      user-select: none;
+    }
+
+    .edge {
+      stroke: var(--edge-color);
+      stroke-width: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <p class="hint">
+    Click a node to add a child. Right-click a node to remove it.
+    <button id="reset">Reset (R)</button>
+  </p>
+  <div class="canvas" id="canvas"></div>
+
+  <script>
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const RADIUS = 20;
+    const UNIT = 56;
+    const LEVEL_HEIGHT = 80;
+    const PADDING = 40;
+
+    const canvasEl = document.getElementById('canvas');
+    let nextValue;
+    let root;
+
+    function makeNode() {
+      return { value: nextValue++, children: [], parent: null };
+    }
+
+    function reset() {
+      nextValue = 1;
+      root = makeNode();
+      render();
+    }
+
+    function addChild(node) {
+      const child = makeNode();
+      child.parent = node;
+      node.children.push(child);
+      render();
+    }
+
+    function removeNode(node) {
+      if (!node.parent) return reset();
+      const siblings = node.parent.children;
+      siblings.splice(siblings.indexOf(node), 1);
+      render();
+    }
+
+    // Leaves get consecutive x positions. A parent sits centered over its children.
+    function layout() {
+      let cursor = 0;
+      let maxDepth = 0;
+      const nodes = [];
+      function visit(node, depth) {
+        nodes.push(node);
+        node.depth = depth;
+        maxDepth = Math.max(maxDepth, depth);
+        if (!node.children.length) {
+          node.x = cursor++;
+          return;
+        }
+        node.children.forEach((child) => visit(child, depth + 1));
+        const first = node.children[0];
+        const last = node.children[node.children.length - 1];
+        node.x = (first.x + last.x) / 2;
+      }
+      visit(root, 0);
+      return { nodes, width: cursor, depth: maxDepth };
+    }
+
+    function svgEl(name, attrs) {
+      const el = document.createElementNS(SVG_NS, name);
+      Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
+      return el;
+    }
+
+    function render() {
+      const { nodes, width, depth } = layout();
+      const px = (node) => PADDING + node.x * UNIT;
+      const py = (node) => PADDING + node.depth * LEVEL_HEIGHT;
+      const svgWidth = (width - 1) * UNIT + PADDING * 2;
+      const svgHeight = depth * LEVEL_HEIGHT + PADDING * 2;
+      const svg = svgEl('svg', {
+        width: svgWidth,
+        height: svgHeight,
+        viewBox: `0 0 ${svgWidth} ${svgHeight}`,
+      });
+
+      nodes.forEach((node) => {
+        node.children.forEach((child) => {
+          svg.appendChild(svgEl('line', {
+            class: 'edge',
+            x1: px(node), y1: py(node), x2: px(child), y2: py(child),
+          }));
+        });
+      });
+
+      nodes.forEach((node) => {
+        const group = svgEl('g', { class: 'node' });
+        group.appendChild(svgEl('circle', { cx: px(node), cy: py(node), r: RADIUS }));
+        const text = svgEl('text', { x: px(node), y: py(node) });
+        text.textContent = node.value;
+        group.appendChild(text);
+        group.addEventListener('click', () => addChild(node));
+        group.addEventListener('contextmenu', (event) => {
+          event.preventDefault();
+          removeNode(node);
+        });
+        svg.appendChild(group);
+      });
+
+      canvasEl.replaceChildren(svg);
+    }
+
+    document.getElementById('reset').addEventListener('click', reset);
+    document.addEventListener('keydown', (event) => {
+      const hasModifier = event.ctrlKey || event.metaKey || event.altKey;
+      if (event.key.toLowerCase() === 'r' && !hasModifier) reset();
+    });
+    reset();
+  </script>
+</body>
+</html>
