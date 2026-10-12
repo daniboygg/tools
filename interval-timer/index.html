@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interval Timer</title>
+  <style>
+    :root {
+      /* Spacing */
+      --spacing-xsmall: 6px;
+      --spacing-small: 12px;
+      --spacing-medium: 20px;
+      --spacing-large: 30px;
+
+      /* Colors */
+      --color-bg: #0d1117;
+      --color-surface: #161b22;
+      --color-surface-raised: #21262d;
+      --color-border: #30363d;
+      --color-text: #c9d1d9;
+      --color-text-bright: #e6edf3;
+      --color-text-muted: #8b949e;
+      --color-link: #58a6ff;
+      --color-start: #238636;
+      --color-start-hover: #2ea043;
+      --color-stop: #da3633;
+      --color-stop-hover: #f85149;
+      --color-pause: #9e6a03;
+      --color-pause-hover: #bb8009;
+
+      /* Interval accent colors, cycled by position */
+      --color-interval-1: #3fb950;
+      --color-interval-2: #f85149;
+      --color-interval-3: #58a6ff;
+      --color-interval-4: #bc8cff;
+      --color-interval-5: #d29922;
+      --color-interval-6: #39c5cf;
+
+      /* Font sizes */
+      --font-size-small: 14px;
+      --font-size-medium: 16px;
+      --font-size-large: 20px;
+      --font-size-xlarge: 28px;
+      --font-size-clock: clamp(72px, 22vw, 160px);
+
+      /* Shapes */
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      min-height: 100vh;
+      padding: var(--spacing-large) var(--spacing-medium);
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-medium);
+    }
+
+    h1 {
+      font-size: var(--font-size-xlarge);
+      color: var(--color-text-bright);
+      font-weight: 400;
+    }
+
+    h2 {
+      font-size: var(--font-size-large);
+      color: var(--color-text-bright);
+      font-weight: 400;
+    }
+
+    a {
+      color: var(--color-link);
+      text-decoration: none;
+      font-size: var(--font-size-small);
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    button {
+      font: inherit;
+      color: var(--color-text-bright);
+      background: var(--color-surface-raised);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      padding: var(--spacing-xsmall) var(--spacing-small);
+    }
+
+    button:hover:not(:disabled) {
+      border-color: var(--color-text-muted);
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Display */
+
+    .display {
+      --accent: var(--color-interval-1);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-top: 6px solid var(--accent);
+      border-radius: var(--radius);
+      padding: var(--spacing-medium);
+      text-align: center;
+      margin-bottom: var(--spacing-medium);
+      transition: border-color 0.3s;
+    }
+
+    .phase-name {
+      font-size: var(--font-size-xlarge);
+      color: var(--accent);
+      min-height: 1.2em;
+      overflow-wrap: anywhere;
+    }
+
+    .clock {
+      font-size: var(--font-size-clock);
+      font-variant-numeric: tabular-nums;
+      color: var(--color-text-bright);
+      line-height: 1.1;
+    }
+
+    .display.warning .clock {
+      color: var(--accent);
+    }
+
+    .progress {
+      height: 8px;
+      background: var(--color-surface-raised);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: var(--spacing-small) 0;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0;
+      background: var(--accent);
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: var(--spacing-small);
+      color: var(--color-text-muted);
+      font-size: var(--font-size-medium);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .next {
+      margin-top: var(--spacing-xsmall);
+      color: var(--color-text-muted);
+      font-size: var(--font-size-small);
+      min-height: 1.4em;
+    }
+
+    /* Controls */
+
+    .controls {
+      display: flex;
+      gap: var(--spacing-small);
+      margin-bottom: var(--spacing-large);
+    }
+
+    .controls button {
+      flex: 1;
+      font-size: var(--font-size-large);
+      padding: var(--spacing-small);
+      border: none;
+    }
+
+    #start-btn {
+      background: var(--color-start);
+    }
+
+    #start-btn:hover {
+      background: var(--color-start-hover);
+    }
+
+    #start-btn.pause {
+      background: var(--color-pause);
+    }
+
+    #start-btn.pause:hover {
+      background: var(--color-pause-hover);
+    }
+
+    #stop-btn {
+      background: var(--color-stop);
+    }
+
+    #stop-btn:hover:not(:disabled) {
+      background: var(--color-stop-hover);
+    }
+
+    /* Setup */
+
+    fieldset {
+      border: none;
+    }
+
+    fieldset:disabled {
+      opacity: 0.6;
+    }
+
+    .settings {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--spacing-small);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: var(--spacing-small) var(--spacing-medium);
+      margin-bottom: var(--spacing-medium);
+    }
+
+    .stepper {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xsmall);
+    }
+
+    .stepper-value {
+      min-width: 3ch;
+      text-align: center;
+      font-size: var(--font-size-large);
+      color: var(--color-text-bright);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stepper button {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      font-size: var(--font-size-large);
+    }
+
+    .sound-toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xsmall);
+      cursor: pointer;
+    }
+
+    .sound-toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--color-start);
+    }
+
+    .intervals-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: var(--spacing-small);
+    }
+
+    .total {
+      color: var(--color-text-muted);
+      font-size: var(--font-size-small);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .interval-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-small);
+      margin-bottom: var(--spacing-small);
+    }
+
+    .interval {
+      --accent: var(--color-interval-1);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-left: 6px solid var(--accent);
+      border-radius: var(--radius);
+      padding: var(--spacing-small);
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      grid-template-areas:
+        "name time remove"
+        "adjust adjust adjust";
+      align-items: center;
+      gap: var(--spacing-small);
+    }
+
+    .interval.active {
+      background: var(--color-surface-raised);
+    }
+
+    .interval-name {
+      grid-area: name;
+      font: inherit;
+      font-size: var(--font-size-medium);
+      color: var(--color-text-bright);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      padding: var(--spacing-xsmall);
+      min-width: 0;
+    }
+
+    .interval-name:hover,
+    .interval-name:focus {
+      border-color: var(--color-border);
+      outline: none;
+    }
+
+    .interval-time {
+      grid-area: time;
+      font-size: var(--font-size-xlarge);
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .remove-btn {
+      grid-area: remove;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      font-size: var(--font-size-large);
+      color: var(--color-text-muted);
+    }
+
+    .remove-btn:hover:not(:disabled) {
+      color: var(--color-stop-hover);
+      border-color: var(--color-stop-hover);
+    }
+
+    .adjust {
+      grid-area: adjust;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: var(--spacing-xsmall);
+    }
+
+    .adjust button {
+      font-variant-numeric: tabular-nums;
+      padding: var(--spacing-xsmall) 0;
+    }
+
+    .adjust .minus {
+      color: var(--color-text-muted);
+    }
+
+    .add-btn {
+      width: 100%;
+      padding: var(--spacing-small);
+      border-style: dashed;
+      background: transparent;
+      color: var(--color-text-muted);
+    }
+
+    .add-btn:hover:not(:disabled) {
+      color: var(--color-text-bright);
+    }
+
+    .hint {
+      margin-top: var(--spacing-medium);
+      color: var(--color-text-muted);
+      font-size: var(--font-size-small);
+      text-align: center;
+    }
+
+    kbd {
+      font-family: inherit;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      padding: 0 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Interval Timer</h1>
+      <a href="/">all tools</a>
+    </header>
+
+    <section class="display" id="display">
+      <div class="phase-name" id="phase-name">Ready</div>
+      <div class="clock" id="clock">0:00</div>
+      <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+      <div class="meta">
+        <span id="round-info">Round 1 / 1</span>
+        <span id="step-info">Interval 1 / 1</span>
+        <span id="remaining-info">Left 0:00</span>
+      </div>
+      <div class="next" id="next-info"></div>
+    </section>
+
+    <div class="controls">
+      <button id="start-btn" type="button">Start</button>
+      <button id="stop-btn" type="button" disabled>Stop</button>
+    </div>
+
+    <fieldset id="setup">
+      <div class="settings">
+        <div class="stepper">
+          <span>Rounds</span>
+          <button type="button" id="rounds-minus" aria-label="Fewer rounds">−</button>
+          <span class="stepper-value" id="rounds-value">1</span>
+          <button type="button" id="rounds-plus" aria-label="More rounds">+</button>
+        </div>
+        <label class="sound-toggle">
+          <input type="checkbox" id="sound-toggle" checked>
+          Sound
+        </label>
+      </div>
+
+      <div class="intervals-header">
+        <h2>Intervals</h2>
+        <span class="total" id="total-info">Total 0:00</span>
+      </div>
+      <ul class="interval-list" id="interval-list"></ul>
+      <button type="button" class="add-btn" id="add-btn">+ Add interval</button>
+    </fieldset>
+
+    <p class="hint">
+      <kbd>Space</kbd> start / pause / resume · <kbd>Esc</kbd> stop.
+      Intervals at 0:00 are skipped.
+    </p>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'interval-timer';
+    const MAX_SECONDS = 99 * 60 + 59;
+    const MAX_ROUNDS = 99;
+    const COLOR_COUNT = 6;
+    const STEPS = [-30, -10, -1, 1, 10, 30];
+
+    const el = {
+      display: document.getElementById('display'),
+      phaseName: document.getElementById('phase-name'),
+      clock: document.getElementById('clock'),
+      progressBar: document.getElementById('progress-bar'),
+      roundInfo: document.getElementById('round-info'),
+      stepInfo: document.getElementById('step-info'),
+      remainingInfo: document.getElementById('remaining-info'),
+      nextInfo: document.getElementById('next-info'),
+      startBtn: document.getElementById('start-btn'),
+      stopBtn: document.getElementById('stop-btn'),
+      setup: document.getElementById('setup'),
+      roundsMinus: document.getElementById('rounds-minus'),
+      roundsPlus: document.getElementById('rounds-plus'),
+      roundsValue: document.getElementById('rounds-value'),
+      soundToggle: document.getElementById('sound-toggle'),
+      totalInfo: document.getElementById('total-info'),
+      list: document.getElementById('interval-list'),
+      addBtn: document.getElementById('add-btn'),
+    };
+
+    // ---------- Config (persisted) ----------
+
+    let nextId = 1;
+    const config = loadConfig();
+
+    function loadConfig() {
+      const fallback = {
+        rounds: 3,
+        sound: true,
+        intervals: [
+          { name: 'Work', seconds: 30 },
+          { name: 'Rest', seconds: 10 },
+        ],
+      };
+      let saved = null;
+      try {
+        saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      } catch (e) {
+        saved = null;
+      }
+      const data = saved && Array.isArray(saved.intervals) ? saved : fallback;
+      return {
+        rounds: clamp(Number(data.rounds) || 1, 1, MAX_ROUNDS),
+        sound: data.sound !== false,
+        intervals: data.intervals.map((iv) => ({
+          id: nextId++,
+          name: String(iv.name ?? ''),
+          seconds: clamp(Number(iv.seconds) || 0, 0, MAX_SECONDS),
+        })),
+      };
+    }
+
+    function saveConfig() {
+      const data = {
+        rounds: config.rounds,
+        sound: config.sound,
+        intervals: config.intervals.map(({ name, seconds }) => ({ name, seconds })),
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        // Storage unavailable: the timer still works for this session.
+      }
+    }
+
+    // ---------- Helpers ----------
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function formatTime(totalSeconds) {
+      const s = Math.max(0, Math.round(totalSeconds));
+      const minutes = Math.floor(s / 60);
+      const seconds = String(s % 60).padStart(2, '0');
+      return `${minutes}:${seconds}`;
+    }
+
+    function colorVar(index) {
+      return `var(--color-interval-${(index % COLOR_COUNT) + 1})`;
+    }
+
+    function intervalLabel(interval, index) {
+      return interval.name.trim() || `Interval ${index + 1}`;
+    }
+
+    // ---------- Sound ----------
+
+    let audioCtx = null;
+
+    function unlockAudio() {
+      if (!audioCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) audioCtx = new Ctx();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function tone(freq, duration, delay = 0) {
+      if (!config.sound || !audioCtx) return;
+      const start = audioCtx.currentTime + delay;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.5, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(start);
+      osc.stop(start + duration + 0.05);
+    }
+
+    const sounds = {
+      countdown: () => tone(660, 0.15),
+      intervalStart: () => tone(990, 0.5),
+      finish: () => {
+        tone(880, 0.25, 0);
+        tone(880, 0.25, 0.3);
+        tone(1320, 0.8, 0.6);
+      },
+    };
+
+    // ---------- Wake lock (keeps the screen on while running) ----------
+
+    let wakeLock = null;
+
+    async function requestWakeLock() {
+      if (!('wakeLock' in navigator) || wakeLock) return;
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } catch (e) {
+        wakeLock = null;
+      }
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock) wakeLock.release();
+      wakeLock = null;
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && timer.status === 'running') {
+        requestWakeLock();
+      }
+    });
+
+    // ---------- Timer engine ----------
+
+    const timer = {
+      status: 'idle', // idle | running | paused | finished
+      steps: [],
+      index: 0,
+      endTime: 0,
+      remainingMs: 0,
+      lastBeep: null,
+      tickId: null,
+    };
+
+    function buildSteps() {
+      const steps = [];
+      for (let round = 1; round <= config.rounds; round++) {
+        config.intervals.forEach((interval, index) => {
+          if (interval.seconds <= 0) return;
+          steps.push({
+            id: interval.id,
+            name: intervalLabel(interval, index),
+            seconds: interval.seconds,
+            color: colorVar(index),
+            round,
+            position: index,
+          });
+        });
+      }
+      return steps;
+    }
+
+    function start() {
+      unlockAudio();
+      timer.steps = buildSteps();
+      if (timer.steps.length === 0) {
+        el.nextInfo.textContent = 'Give at least one interval some time first.';
+        return;
+      }
+      timer.index = 0;
+      timer.status = 'running';
+      beginStep();
+      startTicking();
+      requestWakeLock();
+      render();
+    }
+
+    function beginStep() {
+      const step = timer.steps[timer.index];
+      timer.remainingMs = step.seconds * 1000;
+      timer.endTime = performance.now() + timer.remainingMs;
+      timer.lastBeep = null;
+      sounds.intervalStart();
+    }
+
+    function pause() {
+      timer.remainingMs = Math.max(0, timer.endTime - performance.now());
+      timer.status = 'paused';
+      stopTicking();
+      releaseWakeLock();
+      render();
+    }
+
+    function resume() {
+      unlockAudio();
+      timer.endTime = performance.now() + timer.remainingMs;
+      timer.status = 'running';
+      startTicking();
+      requestWakeLock();
+      render();
+    }
+
+    function stop() {
+      timer.status = 'idle';
+      timer.steps = [];
+      stopTicking();
+      releaseWakeLock();
+      render();
+    }
+
+    function finish() {
+      timer.status = 'finished';
+      timer.remainingMs = 0;
+      stopTicking();
+      releaseWakeLock();
+      sounds.finish();
+      render();
+    }
+
+    function startTicking() {
+      stopTicking();
+      timer.tickId = setInterval(tick, 100);
+    }
+
+    function stopTicking() {
+      clearInterval(timer.tickId);
+      timer.tickId = null;
+    }
+
+    function tick() {
+      timer.remainingMs = timer.endTime - performance.now();
+
+      if (timer.remainingMs <= 0) {
+        // Carry overshoot into the next step so long runs do not drift.
+        const overshoot = -timer.remainingMs;
+        timer.index++;
+        if (timer.index >= timer.steps.length) {
+          finish();
+          return;
+        }
+        beginStep();
+        timer.endTime -= overshoot;
+        timer.remainingMs -= overshoot;
+      }
+
+      const secondsLeft = Math.ceil(timer.remainingMs / 1000);
+      if (secondsLeft <= 3 && secondsLeft > 0 && secondsLeft !== timer.lastBeep) {
+        timer.lastBeep = secondsLeft;
+        sounds.countdown();
+      }
+      renderDisplay();
+    }
+
+    // ---------- Rendering ----------
+
+    function render() {
+      renderControls();
+      renderDisplay();
+      renderActive();
+    }
+
+    function renderControls() {
+      const { status } = timer;
+      const busy = status === 'running' || status === 'paused';
+      el.startBtn.textContent =
+        status === 'running' ? 'Pause' : status === 'paused' ? 'Resume' : 'Start';
+      el.startBtn.classList.toggle('pause', status === 'running');
+      el.stopBtn.disabled = status === 'idle';
+      el.stopBtn.textContent = status === 'finished' ? 'Reset' : 'Stop';
+      el.setup.disabled = busy;
+    }
+
+    function renderDisplay() {
+      if (timer.status === 'idle') {
+        renderIdle();
+        return;
+      }
+
+      const steps = timer.steps;
+      const finished = timer.status === 'finished';
+      const step = steps[Math.min(timer.index, steps.length - 1)];
+      const remaining = finished ? 0 : Math.max(0, timer.remainingMs) / 1000;
+      const secondsLeft = Math.ceil(remaining);
+      const stepsPerRound = steps.length / config.rounds;
+
+      let totalLeft = remaining;
+      for (let i = timer.index + 1; i < steps.length; i++) totalLeft += steps[i].seconds;
+
+      el.display.style.setProperty('--accent', step.color);
+      el.display.classList.toggle(
+        'warning',
+        !finished && secondsLeft <= 3 && timer.status === 'running'
+      );
+      el.phaseName.textContent = finished ? 'Done!' : step.name;
+      el.clock.textContent = formatTime(secondsLeft);
+      const progress = finished ? 1 : 1 - remaining / step.seconds;
+      el.progressBar.style.width = `${clamp(progress, 0, 1) * 100}%`;
+      el.roundInfo.textContent = `Round ${step.round} / ${config.rounds}`;
+      const indexInRound = (timer.index % stepsPerRound) + 1;
+      el.stepInfo.textContent = `Interval ${indexInRound} / ${stepsPerRound}`;
+      el.remainingInfo.textContent = `Left ${formatTime(Math.ceil(totalLeft))}`;
+
+      const next = steps[timer.index + 1];
+      if (finished) {
+        el.nextInfo.textContent = 'Workout complete.';
+      } else if (next) {
+        el.nextInfo.textContent = `Next: ${next.name} (${formatTime(next.seconds)})`;
+      } else {
+        el.nextInfo.textContent = 'Last interval';
+      }
+      if (timer.status === 'paused') el.phaseName.textContent = `${step.name} (paused)`;
+    }
+
+    function renderIdle() {
+      const steps = buildSteps();
+      const first = steps[0];
+      const total = steps.reduce((sum, s) => sum + s.seconds, 0);
+      const stepsPerRound = steps.length / config.rounds;
+
+      el.display.style.setProperty('--accent', first ? first.color : colorVar(0));
+      el.display.classList.remove('warning');
+      el.phaseName.textContent = first ? first.name : 'Ready';
+      el.clock.textContent = formatTime(first ? first.seconds : 0);
+      el.progressBar.style.width = '0';
+      el.roundInfo.textContent = `Round 1 / ${config.rounds}`;
+      el.stepInfo.textContent = `Interval 1 / ${stepsPerRound || 0}`;
+      el.remainingInfo.textContent = `Left ${formatTime(total)}`;
+      el.nextInfo.textContent = '';
+    }
+
+    function renderActive() {
+      const running = timer.status === 'running' || timer.status === 'paused';
+      const activeId = running ? timer.steps[timer.index].id : null;
+      for (const item of el.list.children) {
+        item.classList.toggle('active', Number(item.dataset.id) === activeId);
+      }
+    }
+
+    function renderSetup() {
+      el.roundsValue.textContent = config.rounds;
+      el.roundsMinus.disabled = config.rounds <= 1;
+      el.roundsPlus.disabled = config.rounds >= MAX_ROUNDS;
+      el.soundToggle.checked = config.sound;
+
+      const roundSeconds = config.intervals.reduce((sum, iv) => sum + iv.seconds, 0);
+      el.totalInfo.textContent =
+        `${formatTime(roundSeconds)} × ${config.rounds} = ` +
+        `${formatTime(roundSeconds * config.rounds)}`;
+    }
+
+    function renderList() {
+      el.list.replaceChildren(...config.intervals.map(createIntervalItem));
+      renderActive();
+    }
+
+    function createIntervalItem(interval, index) {
+      const item = document.createElement('li');
+      item.className = 'interval';
+      item.dataset.id = interval.id;
+      item.style.setProperty('--accent', colorVar(index));
+
+      const name = document.createElement('input');
+      name.className = 'interval-name';
+      name.type = 'text';
+      name.value = interval.name;
+      name.placeholder = `Interval ${index + 1}`;
+      name.setAttribute('aria-label', 'Interval name');
+      name.dataset.action = 'rename';
+
+      const time = document.createElement('span');
+      time.className = 'interval-time';
+      time.textContent = formatTime(interval.seconds);
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'remove-btn';
+      remove.textContent = '×';
+      remove.title = 'Remove interval';
+      remove.setAttribute('aria-label', 'Remove interval');
+      remove.dataset.action = 'remove';
+
+      const adjust = document.createElement('div');
+      adjust.className = 'adjust';
+      for (const delta of STEPS) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = delta < 0 ? 'minus' : 'plus';
+        btn.textContent = delta < 0 ? `−${-delta}` : `+${delta}`;
+        btn.dataset.action = 'adjust';
+        btn.dataset.delta = delta;
+        adjust.append(btn);
+      }
+
+      item.append(name, time, remove, adjust);
+      updateAdjustButtons(item, interval);
+      return item;
+    }
+
+    function updateAdjustButtons(item, interval) {
+      for (const btn of item.querySelectorAll('.adjust button')) {
+        const delta = Number(btn.dataset.delta);
+        btn.disabled =
+          (delta < 0 && interval.seconds <= 0) ||
+          (delta > 0 && interval.seconds >= MAX_SECONDS);
+      }
+    }
+
+    function configChanged() {
+      saveConfig();
+      renderSetup();
+      if (timer.status === 'idle') renderDisplay();
+    }
+
+    // ---------- Events ----------
+
+    function findInterval(target) {
+      const item = target.closest('.interval');
+      if (!item) return {};
+      const id = Number(item.dataset.id);
+      return { item, interval: config.intervals.find((iv) => iv.id === id) };
+    }
+
+    el.list.addEventListener('click', (event) => {
+      const btn = event.target.closest('button');
+      if (!btn) return;
+      const { item, interval } = findInterval(btn);
+      if (!interval) return;
+
+      if (btn.dataset.action === 'adjust') {
+        const delta = Number(btn.dataset.delta);
+        interval.seconds = clamp(interval.seconds + delta, 0, MAX_SECONDS);
+        item.querySelector('.interval-time').textContent = formatTime(interval.seconds);
+        updateAdjustButtons(item, interval);
+        configChanged();
+      } else if (btn.dataset.action === 'remove') {
+        config.intervals = config.intervals.filter((iv) => iv !== interval);
+        renderList();
+        configChanged();
+      }
+    });
+
+    el.list.addEventListener('input', (event) => {
+      if (event.target.dataset.action !== 'rename') return;
+      const { interval } = findInterval(event.target);
+      if (!interval) return;
+      interval.name = event.target.value;
+      configChanged();
+    });
+
+    el.addBtn.addEventListener('click', () => {
+      config.intervals.push({ id: nextId++, name: '', seconds: 0 });
+      renderList();
+      configChanged();
+      el.list.lastElementChild.querySelector('.interval-name').focus();
+    });
+
+    el.roundsMinus.addEventListener('click', () => {
+      config.rounds = clamp(config.rounds - 1, 1, MAX_ROUNDS);
+      configChanged();
+    });
+
+    el.roundsPlus.addEventListener('click', () => {
+      config.rounds = clamp(config.rounds + 1, 1, MAX_ROUNDS);
+      configChanged();
+    });
+
+    el.soundToggle.addEventListener('change', () => {
+      config.sound = el.soundToggle.checked;
+      if (config.sound) {
+        unlockAudio();
+        sounds.countdown();
+      }
+      saveConfig();
+    });
+
+    function toggleStart() {
+      if (timer.status === 'running') pause();
+      else if (timer.status === 'paused') resume();
+      else start();
+    }
+
+    el.startBtn.addEventListener('click', toggleStart);
+    el.stopBtn.addEventListener('click', stop);
+
+    document.addEventListener('keydown', (event) => {
+      const tag = event.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (event.code === 'Space') {
+        // Blur a focused button so the native Space click does not toggle twice.
+        event.preventDefault();
+        if (tag === 'BUTTON') event.target.blur();
+        toggleStart();
+      } else if (event.key === 'Escape' && timer.status !== 'idle') {
+        stop();
+      }
+    });
+
+    // ---------- Init ----------
+
+    renderList();
+    renderSetup();
+    render();
+  </script>
+</body>
+</html>
