@@ -552,40 +552,113 @@
 
     // ---------- Sound ----------
 
-    let audioCtx = null;
+    // Cues play through an <audio> element rather than Web Audio. For clips
+    // shorter than 5 seconds Chrome on Android requests "transient, may duck"
+    // audio focus, so music from other apps (e.g. Spotify) is lowered while a
+    // cue plays instead of drowning it out or stopping. Safari 17+ gets the
+    // same behaviour through the Audio Session API.
 
-    function unlockAudio() {
-      if (!audioCtx) {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        if (Ctx) audioCtx = new Ctx();
+    const SAMPLE_RATE = 22050;
+    const COUNTDOWN_SECONDS = 3;
+    const VOLUME = 0.5;
+    const ATTACK = 0.01;
+    const SILENT = 0.0001;
+    const player = new Audio();
+    let clips = null;
+    let audioUnlocked = false;
+
+    const BEEP = { freq: 660, length: 0.15 };
+    const START_NOTES = [{ freq: 990, at: 0, length: 0.6 }];
+    const FINISH_NOTES = [
+      { freq: 880, at: 0, length: 0.25 },
+      { freq: 880, at: 0.3, length: 0.25 },
+      { freq: 1320, at: 0.6, length: 0.8 },
+    ];
+
+    function countdownThen(notes) {
+      const beeps = [0, 1, 2].map((at) => ({ ...BEEP, at }));
+      const tail = notes.map((note) => ({ ...note, at: note.at + COUNTDOWN_SECONDS }));
+      return [...beeps, ...tail];
+    }
+
+    // Same sine tone and envelope the timer used with Web Audio: a 10 ms
+    // exponential rise to VOLUME, then an exponential fade over the note.
+    function renderClip(notes) {
+      const end = Math.max(...notes.map((note) => note.at + note.length)) + 0.05;
+      const samples = new Float32Array(Math.ceil(end * SAMPLE_RATE));
+      for (const { freq, at, length } of notes) {
+        const first = Math.floor(at * SAMPLE_RATE);
+        const count = Math.floor(length * SAMPLE_RATE);
+        for (let i = 0; i < count; i++) {
+          const t = i / SAMPLE_RATE;
+          const envelope = t < ATTACK
+            ? SILENT * (VOLUME / SILENT) ** (t / ATTACK)
+            : VOLUME * (SILENT / VOLUME) ** ((t - ATTACK) / (length - ATTACK));
+          samples[first + i] += envelope * Math.sin(2 * Math.PI * freq * t);
+        }
       }
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      return wavUrl(samples, 1);
     }
 
-    function tone(freq, duration, delay = 0) {
-      if (!config.sound || !audioCtx) return;
-      const start = audioCtx.currentTime + delay;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.5, start + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-      osc.connect(gain).connect(audioCtx.destination);
-      osc.start(start);
-      osc.stop(start + duration + 0.05);
+    function wavUrl(samples, scale) {
+      const view = new DataView(new ArrayBuffer(44 + samples.length * 2));
+      const text = (offset, value) => {
+        for (let i = 0; i < value.length; i++) {
+          view.setUint8(offset + i, value.charCodeAt(i));
+        }
+      };
+      text(0, 'RIFF');
+      view.setUint32(4, 36 + samples.length * 2, true);
+      text(8, 'WAVE');
+      text(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // PCM
+      view.setUint16(22, 1, true); // mono
+      view.setUint32(24, SAMPLE_RATE, true);
+      view.setUint32(28, SAMPLE_RATE * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      text(36, 'data');
+      view.setUint32(40, samples.length * 2, true);
+      samples.forEach((s, i) => {
+        const value = Math.max(-1, Math.min(1, s * scale));
+        view.setInt16(44 + i * 2, value * 0x7fff, true);
+      });
+      return URL.createObjectURL(new Blob([view], { type: 'audio/wav' }));
     }
 
-    const sounds = {
-      countdown: () => tone(660, 0.15),
-      intervalStart: () => tone(990, 0.5),
-      finish: () => {
-        tone(880, 0.25, 0);
-        tone(880, 0.25, 0.3);
-        tone(1320, 0.8, 0.6);
-      },
-    };
+    function buildClips() {
+      return {
+        silence: wavUrl(new Float32Array(SAMPLE_RATE / 10), 0),
+        beep: renderClip([{ ...BEEP, at: 0 }]),
+        start: renderClip(START_NOTES),
+        finish: renderClip(FINISH_NOTES),
+        countdownStart: renderClip(countdownThen(START_NOTES)),
+        countdownFinish: renderClip(countdownThen(FINISH_NOTES)),
+      };
+    }
+
+    // Must run inside a user gesture so later cues are allowed to play.
+    function unlockAudio() {
+      if (!config.sound) return;
+      if (navigator.audioSession) navigator.audioSession.type = 'transient';
+      if (!clips) clips = buildClips();
+      if (!audioUnlocked) {
+        audioUnlocked = true;
+        play(clips.silence);
+      }
+    }
+
+    function play(url, offset = 0) {
+      if (!config.sound || !url) return;
+      player.src = url;
+      player.currentTime = offset;
+      player.play().catch(() => {});
+    }
+
+    function stopSound() {
+      player.pause();
+    }
 
     // ---------- Wake lock (keeps the screen on while running) ----------
 
@@ -629,7 +702,7 @@
       index: 0,
       endTime: 0,
       remainingMs: 0,
-      lastBeep: null,
+      cuePlayed: false,
       tickId: null,
     };
 
@@ -661,6 +734,7 @@
       timer.index = 0;
       timer.status = 'running';
       beginStep();
+      play(clips?.start);
       startTicking();
       requestWakeLock();
       render();
@@ -670,20 +744,22 @@
       const step = timer.steps[timer.index];
       timer.remainingMs = step.seconds * 1000;
       timer.endTime = performance.now() + timer.remainingMs;
-      timer.lastBeep = null;
-      sounds.intervalStart();
+      timer.cuePlayed = false;
     }
 
     function pause() {
       timer.remainingMs = Math.max(0, timer.endTime - performance.now());
       timer.status = 'paused';
       stopTicking();
+      stopSound();
       releaseWakeLock();
       render();
     }
 
     function resume() {
       unlockAudio();
+      // Replays the countdown from the right spot if paused during it.
+      timer.cuePlayed = false;
       timer.endTime = performance.now() + timer.remainingMs;
       timer.status = 'running';
       startTicking();
@@ -695,6 +771,7 @@
       timer.status = 'idle';
       timer.steps = [];
       stopTicking();
+      stopSound();
       releaseWakeLock();
       render();
     }
@@ -704,7 +781,6 @@
       timer.remainingMs = 0;
       stopTicking();
       releaseWakeLock();
-      sounds.finish();
       render();
     }
 
@@ -724,20 +800,30 @@
       if (timer.remainingMs <= 0) {
         // Carry overshoot into the next step so long runs do not drift.
         const overshoot = -timer.remainingMs;
+        // The countdown cue already ends with the next sound, unless the step
+        // was too short for one or ticks were delayed in the background.
+        const missedCue = !timer.cuePlayed;
         timer.index++;
         if (timer.index >= timer.steps.length) {
+          if (missedCue) play(clips?.finish);
           finish();
           return;
         }
         beginStep();
+        if (missedCue) play(clips?.start);
         timer.endTime -= overshoot;
         timer.remainingMs -= overshoot;
       }
 
-      const secondsLeft = Math.ceil(timer.remainingMs / 1000);
-      if (secondsLeft <= 3 && secondsLeft > 0 && secondsLeft !== timer.lastBeep) {
-        timer.lastBeep = secondsLeft;
-        sounds.countdown();
+      // One clip covers 3-2-1 and the next sound, so music ducks only once.
+      const step = timer.steps[timer.index];
+      const countdownMs = COUNTDOWN_SECONDS * 1000;
+      if (!timer.cuePlayed && step.seconds > COUNTDOWN_SECONDS &&
+          timer.remainingMs <= countdownMs) {
+        timer.cuePlayed = true;
+        const isLast = timer.index === timer.steps.length - 1;
+        const offset = (countdownMs - timer.remainingMs) / 1000;
+        play(isLast ? clips?.countdownFinish : clips?.countdownStart, offset);
       }
       renderDisplay();
     }
@@ -964,7 +1050,7 @@
       config.sound = el.soundToggle.checked;
       if (config.sound) {
         unlockAudio();
-        sounds.countdown();
+        play(clips.beep);
       }
       saveConfig();
     });
