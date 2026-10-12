@@ -165,21 +165,26 @@
       min-height: 1.4em;
     }
 
-    .wake-warning {
-      margin-top: var(--spacing-small);
-      padding: var(--spacing-xsmall) var(--spacing-small);
-      border: 1px solid var(--color-stop);
-      border-radius: var(--radius);
-      color: var(--color-stop-hover);
-      font-size: var(--font-size-small);
+    /* Controls */
+
+    .actions {
+      margin-bottom: var(--spacing-large);
     }
 
-    /* Controls */
+    .actions:has(.wake-warning:not([hidden])) {
+      margin-bottom: var(--spacing-small);
+    }
 
     .controls {
       display: flex;
       gap: var(--spacing-small);
-      margin-bottom: var(--spacing-large);
+    }
+
+    .wake-warning {
+      margin-top: var(--spacing-xsmall);
+      color: var(--color-text-muted);
+      font-size: var(--font-size-small);
+      text-align: center;
     }
 
     .controls button {
@@ -409,15 +414,17 @@
         <span id="remaining-info">Left 0:00</span>
       </div>
       <div class="next" id="next-info"></div>
-      <div class="wake-warning" id="wake-warning" hidden>
-        The screen may turn off during the workout. Your browser does not keep it on,
-        or battery saver blocks it.
-      </div>
     </section>
 
-    <div class="controls">
-      <button id="start-btn" type="button">Start</button>
-      <button id="stop-btn" type="button" disabled>Stop</button>
+    <div class="actions">
+      <div class="controls">
+        <button id="start-btn" type="button">Start</button>
+        <button id="stop-btn" type="button" disabled>Stop</button>
+      </div>
+      <p class="wake-warning" id="wake-warning" hidden>
+        The screen may turn off during the workout. Your browser does not keep it on,
+        or battery saver blocks it.
+      </p>
     </div>
 
     <fieldset id="setup">
