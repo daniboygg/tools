@@ -46,7 +46,7 @@ $marker
 
 - Static site: plain HTML/CSS/JS, no build step or dependencies.
 - \`live-server\` is preinstalled globally. To preview, run it as a supervised service:
-  \`amp orb service start site --command 'live-server --no-browser --port=8080 $repo_root' --portal\`
+  \`amp orb service start site --command 'live-server --no-browser --port=\$PORT $repo_root' --portal\`
 GUIDE
 }
 
