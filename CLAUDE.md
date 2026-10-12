@@ -5,6 +5,7 @@
 - Do not use React or any convoluted web tooling
 - Use plain HTML, CSS, and JavaScript using standard web apis
 - When creating a new app update the proper index.html file in the root folder
+- Do not add a "back to all tools" link (or any link to the root index) on tool pages
 
 ## Code Style
 
