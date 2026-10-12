@@ -165,6 +165,15 @@
       min-height: 1.4em;
     }
 
+    .wake-warning {
+      margin-top: var(--spacing-small);
+      padding: var(--spacing-xsmall) var(--spacing-small);
+      border: 1px solid var(--color-stop);
+      border-radius: var(--radius);
+      color: var(--color-stop-hover);
+      font-size: var(--font-size-small);
+    }
+
     /* Controls */
 
     .controls {
@@ -400,6 +409,10 @@
         <span id="remaining-info">Left 0:00</span>
       </div>
       <div class="next" id="next-info"></div>
+      <div class="wake-warning" id="wake-warning" hidden>
+        The screen may turn off during the workout. Your browser does not keep it on,
+        or battery saver blocks it.
+      </div>
     </section>
 
     <div class="controls">
@@ -451,6 +464,7 @@
       stepInfo: document.getElementById('step-info'),
       remainingInfo: document.getElementById('remaining-info'),
       nextInfo: document.getElementById('next-info'),
+      wakeWarning: document.getElementById('wake-warning'),
       startBtn: document.getElementById('start-btn'),
       stopBtn: document.getElementById('stop-btn'),
       setup: document.getElementById('setup'),
@@ -569,15 +583,24 @@
     // ---------- Wake lock (keeps the screen on while running) ----------
 
     let wakeLock = null;
+    let wakeLockFailed = false;
 
     async function requestWakeLock() {
-      if (!('wakeLock' in navigator) || wakeLock) return;
+      if (wakeLock) return;
+      if (!('wakeLock' in navigator)) {
+        wakeLockFailed = true;
+        renderWakeWarning();
+        return;
+      }
       try {
         wakeLock = await navigator.wakeLock.request('screen');
         wakeLock.addEventListener('release', () => { wakeLock = null; });
+        wakeLockFailed = false;
       } catch (e) {
         wakeLock = null;
+        wakeLockFailed = true;
       }
+      renderWakeWarning();
     }
 
     function releaseWakeLock() {
@@ -718,6 +741,11 @@
       renderControls();
       renderDisplay();
       renderActive();
+      renderWakeWarning();
+    }
+
+    function renderWakeWarning() {
+      el.wakeWarning.hidden = !(wakeLockFailed && timer.status === 'running');
     }
 
     function renderControls() {
