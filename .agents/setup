@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Prepares an Amp orb for this static site. Must stay non-interactive and idempotent.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+live_server_version="1.2.2"
+
+step() {
+  local name="$1"
+  shift
+  local start=$SECONDS
+  echo "==> $name"
+  "$@"
+  echo "<== $name ($((SECONDS - start))s)"
+}
+
+install_live_server() {
+  local installed=""
+  if command -v live-server >/dev/null 2>&1; then
+    installed="$(npm ls -g --depth=0 --json live-server 2>/dev/null \
+      | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+          try{console.log(JSON.parse(s).dependencies["live-server"].version)}catch{}})')"
+  fi
+  if [[ "$installed" == "$live_server_version" ]]; then
+    echo "live-server $installed already installed"
+    return
+  fi
+  npm install -g --no-audit --no-fund "live-server@$live_server_version"
+}
+
+write_agent_guidance() {
+  local guidance_dir="$HOME/.config/amp"
+  local guidance_file="$guidance_dir/AGENTS.md"
+  local marker="<!-- tools.daniboygg.dev orb notes -->"
+  mkdir -p "$guidance_dir"
+  if grep -Fqx "$marker" "$guidance_file" 2>/dev/null; then
+    echo "orb guidance already present"
+    return
+  fi
+  cat >> "$guidance_file" <<GUIDE
+
+$marker
+# tools.daniboygg.dev in this orb
+
+- Static site: plain HTML/CSS/JS, no build step or dependencies.
+- \`live-server\` is preinstalled globally. To preview, run it as a supervised service:
+  \`amp orb service start site --command 'live-server --no-browser --port=8080 $repo_root' --portal\`
+GUIDE
+}
+
+step "install live-server" install_live_server
+step "write orb agent guidance" write_agent_guidance

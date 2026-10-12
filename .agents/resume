@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Runs each time the orb wakes. This static site has nothing to reconnect or authenticate.
+set -euo pipefail
+
+command -v live-server >/dev/null || echo "warning: live-server missing; rerun .agents/setup" >&2
