@@ -1,0 +1,2568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community Payments</title>
+  <style>
+    :root {
+      color-scheme: light;
+
+      --color-bg: #f4f2ee;
+      --color-surface: #ffffff;
+      --color-surface-alt: #faf9f7;
+      --color-border: #e6e2da;
+      --color-border-strong: #d4cec3;
+      --color-text: #1f1d1a;
+      --color-text-muted: #7a746a;
+      --color-accent: #2f6f5e;
+      --color-accent-soft: #e5f0ec;
+      --color-row-hover: #f3f7f5;
+      --color-row-selected: #dcebe5;
+      --color-error: #b3261e;
+      --color-error-soft: #fbeceb;
+      --color-warning: #8a5a00;
+      --color-warning-soft: #fdf3dc;
+
+      --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, Consolas,
+        monospace;
+
+      --font-size-xsmall: 11px;
+      --font-size-small: 13px;
+      --font-size-medium: 14px;
+      --font-size-large: 16px;
+      --font-size-xlarge: 20px;
+      --font-size-title: 20px;
+
+      --spacing-xsmall: 4px;
+      --spacing-small: 8px;
+      --spacing-medium: 16px;
+      --spacing-large: 24px;
+      --spacing-xlarge: 48px;
+
+      --radius-small: 8px;
+      --radius-large: 14px;
+      --shadow: 0 1px 2px rgba(31, 29, 26, 0.04),
+        0 8px 24px rgba(31, 29, 26, 0.06);
+
+      --panel-width: 420px;
+
+      /* One color per person, from Sasha Trubetskoy's list of 20 distinct
+         colors. The tag text is white or dark, whichever is easier to read. */
+      --person-0: #e6194b; /* red */
+      --person-0-text: var(--color-surface);
+      --person-1: #3cb44b; /* green */
+      --person-1-text: var(--color-surface);
+      --person-2: #ffe119; /* yellow */
+      --person-2-text: var(--color-text);
+      --person-3: #4363d8; /* blue */
+      --person-3-text: var(--color-surface);
+      --person-4: #f58231; /* orange */
+      --person-4-text: var(--color-text);
+      --person-5: #911eb4; /* purple */
+      --person-5-text: var(--color-surface);
+      --person-6: #42d4f4; /* cyan */
+      --person-6-text: var(--color-text);
+      --person-7: #f032e6; /* magenta */
+      --person-7-text: var(--color-surface);
+      --person-8: #bfef45; /* lime */
+      --person-8-text: var(--color-text);
+      --person-9: #9a6324; /* brown */
+      --person-9-text: var(--color-surface);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.5;
+      min-height: 100vh;
+      padding: var(--spacing-medium) var(--spacing-large);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: var(--font-size-title);
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: var(--spacing-small);
+    }
+
+    .drop-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--spacing-small);
+      padding: var(--spacing-xlarge) var(--spacing-large);
+      background: var(--color-surface);
+      border: 1.5px dashed var(--color-border-strong);
+      border-radius: var(--radius-large);
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      border-color: var(--color-accent);
+      background: var(--color-accent-soft);
+    }
+
+    .drop-zone input {
+      display: none;
+    }
+
+    .drop-icon {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--color-accent-soft);
+      color: var(--color-accent);
+      margin-bottom: var(--spacing-xsmall);
+    }
+
+    .drop-title {
+      font-size: var(--font-size-large);
+      font-weight: 600;
+    }
+
+    .drop-title span {
+      color: var(--color-accent);
+    }
+
+    .hint {
+      color: var(--color-text-muted);
+      font-size: var(--font-size-small);
+    }
+
+    kbd {
+      font-family: var(--font-mono);
+      font-size: var(--font-size-xsmall);
+      padding: 1px 6px;
+      border: 1px solid var(--color-border-strong);
+      border-radius: 4px;
+      background: var(--color-surface-alt);
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: var(--spacing-medium);
+      margin-bottom: var(--spacing-small);
+    }
+
+    .file-name {
+      font-weight: 600;
+      font-size: var(--font-size-large);
+    }
+
+    .file-meta {
+      color: var(--color-text-muted);
+      font-size: var(--font-size-small);
+    }
+
+    .actions {
+      display: flex;
+      gap: var(--spacing-small);
+    }
+
+    button {
+      font: inherit;
+      font-size: var(--font-size-small);
+      font-weight: 500;
+      color: var(--color-text);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-small);
+      padding: 7px var(--spacing-medium);
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    button:hover {
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+    }
+
+    .error {
+      margin-top: var(--spacing-medium);
+      padding: var(--spacing-small) var(--spacing-medium);
+      border-radius: var(--radius-small);
+      background: var(--color-error-soft);
+      color: var(--color-error);
+      font-size: var(--font-size-medium);
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--spacing-large);
+      align-items: start;
+    }
+
+    .workspace.with-panel {
+      grid-template-columns: minmax(0, 1fr) var(--panel-width);
+    }
+
+    .table-card,
+    .panel {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-large);
+      box-shadow: var(--shadow);
+      overflow: auto;
+      max-height: calc(100vh - 2 * var(--spacing-large));
+    }
+
+    .table-card {
+      max-height: calc(100vh - 130px);
+    }
+
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+      font-size: var(--font-size-small);
+    }
+
+    th,
+    td {
+      padding: 3px var(--spacing-small);
+      text-align: left;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding-top: 6px;
+      padding-bottom: 6px;
+      background: var(--color-surface-alt);
+      color: var(--color-text-muted);
+      font-size: var(--font-size-xsmall);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    th.group-column {
+      color: var(--color-accent);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody tr {
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    tbody tr:hover {
+      background: var(--color-row-hover);
+    }
+
+    /* Rows of a person keep a light tint of the person's color */
+    tbody tr.assigned {
+      background: color-mix(in srgb, var(--person-fg) 22%, var(--color-surface));
+    }
+
+    tbody tr.assigned:hover {
+      filter: brightness(0.97);
+    }
+
+    tbody tr.selected {
+      background: var(--person-bg, var(--color-row-selected));
+    }
+
+    tbody tr.selected td:first-child {
+      box-shadow: inset 3px 0 0 var(--person-fg, var(--color-accent));
+    }
+
+    .amount {
+      text-align: right;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    th.amount {
+      font-family: var(--font-sans);
+    }
+
+    .compact .drop-zone {
+      display: none;
+    }
+
+    /* Report panel */
+
+    .panel {
+      position: sticky;
+      top: var(--spacing-large);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--spacing-medium);
+      padding: var(--spacing-large);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .panel-label {
+      font-size: var(--font-size-xsmall);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-text-muted);
+    }
+
+    .panel-title {
+      font-size: var(--font-size-xlarge);
+      font-weight: 650;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+
+    .close-button {
+      padding: 2px 10px;
+      font-size: var(--font-size-large);
+      line-height: 1.4;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .stat {
+      padding: var(--spacing-medium);
+    }
+
+    .stat + .stat {
+      border-left: 1px solid var(--color-border);
+    }
+
+    .stat-value {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: var(--font-size-medium);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .year {
+      padding: var(--spacing-large);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .year:last-child {
+      border-bottom: none;
+    }
+
+    .year-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-small);
+    }
+
+    .year-name {
+      font-size: var(--font-size-large);
+      font-weight: 650;
+    }
+
+    .year-total {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+
+    .year-summary {
+      font-size: var(--font-size-small);
+      color: var(--color-text-muted);
+      margin-bottom: var(--spacing-medium);
+    }
+
+    .year-summary .bad {
+      color: var(--color-error);
+      font-weight: 600;
+    }
+
+    .months {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: var(--spacing-medium);
+    }
+
+    .month {
+      padding: 6px var(--spacing-small);
+      border-radius: var(--radius-small);
+      background: var(--color-accent-soft);
+      border: 1px solid transparent;
+    }
+
+    .month-name {
+      font-size: var(--font-size-xsmall);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-text-muted);
+    }
+
+    .month-value {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: var(--font-size-small);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .month[data-action] {
+      cursor: pointer;
+    }
+
+    .month[data-action]:hover {
+      border-color: currentColor;
+    }
+
+    .month.missing {
+      background: var(--color-error-soft);
+      color: var(--color-error);
+    }
+
+    .month.unusual {
+      background: var(--color-warning-soft);
+      color: var(--color-warning);
+    }
+
+    .month.out-of-range {
+      background: var(--color-surface-alt);
+      border-color: var(--color-border);
+      color: var(--color-text-muted);
+    }
+
+    .payments {
+      width: 100%;
+      font-size: var(--font-size-small);
+    }
+
+    .payments td {
+      padding: 4px 0;
+      border-bottom: 1px dashed var(--color-border);
+    }
+
+    .payments tr:last-child td {
+      border-bottom: none;
+    }
+
+    .payments tr {
+      cursor: pointer;
+    }
+
+    .payments tr:hover {
+      background: var(--color-row-hover);
+    }
+
+    /* Rows the report points to, for a short time after a click */
+    tbody tr.flash td {
+      animation: flash 2s ease-out;
+    }
+
+    @keyframes flash {
+      0%,
+      40% {
+        background: var(--color-warning-soft);
+        box-shadow: inset 0 1px 0 var(--color-warning), inset 0 -1px 0 var(--color-warning);
+      }
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-medium);
+      padding: var(--spacing-medium) var(--spacing-large);
+      border-bottom: 1px solid var(--color-border);
+      font-size: var(--font-size-xsmall);
+      color: var(--color-text-muted);
+    }
+
+    .legend span::before {
+      content: '';
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-right: 6px;
+      border-radius: 3px;
+      vertical-align: -1px;
+    }
+
+    .legend .paid::before {
+      background: var(--color-accent-soft);
+    }
+
+    .legend .missing::before {
+      background: var(--color-error-soft);
+    }
+
+    .legend .unusual::before {
+      background: var(--color-warning-soft);
+    }
+
+    .panel-empty {
+      padding: var(--spacing-large);
+      color: var(--color-text-muted);
+      font-size: var(--font-size-medium);
+    }
+
+    .person-tag {
+      display: inline-block;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: bottom;
+      padding: 0 6px;
+      border-radius: 4px;
+      background: var(--person-fg, var(--color-accent));
+      color: var(--person-text, var(--color-surface));
+      font-size: var(--font-size-xsmall);
+      font-weight: 600;
+    }
+
+    .person-dot {
+      display: inline-block;
+      flex: none;
+      width: 10px;
+      height: 10px;
+      margin-right: 6px;
+      border-radius: 50%;
+      background: var(--person-fg, var(--color-accent));
+    }
+
+    tbody tr.pending {
+      background: var(--color-warning-soft);
+    }
+
+    tbody tr.pending td:first-child {
+      box-shadow: inset 3px 0 0 var(--color-warning);
+    }
+
+    .panel-heading {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .name-input {
+      width: 100%;
+      font: inherit;
+      font-size: var(--font-size-xlarge);
+      font-weight: 650;
+      color: var(--color-text);
+      border: 1px solid transparent;
+      border-radius: var(--radius-small);
+      background: none;
+      padding: 0 var(--spacing-xsmall);
+      margin-left: calc(-1 * var(--spacing-xsmall));
+    }
+
+    .name-input:hover,
+    .name-input:focus {
+      border-color: var(--color-border-strong);
+      outline: none;
+    }
+
+    .panel-section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-small);
+      padding: var(--spacing-medium) var(--spacing-large);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .panel-hint {
+      color: var(--color-text-muted);
+      font-size: var(--font-size-small);
+    }
+
+    .primary-button {
+      background: var(--color-accent);
+      border-color: var(--color-accent);
+      color: var(--color-surface);
+      font-weight: 600;
+    }
+
+    .primary-button:hover {
+      color: var(--color-surface);
+      opacity: 0.9;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      padding: 3px 10px;
+    }
+
+    .concepto-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-xsmall);
+      padding: 2px 4px 2px 10px;
+      border-radius: var(--radius-small);
+      background: var(--color-surface-alt);
+      border: 1px solid var(--color-border);
+      font-size: var(--font-size-small);
+    }
+
+    .concepto-chip button {
+      border: none;
+      background: none;
+      padding: 0 6px;
+      color: var(--color-text-muted);
+    }
+
+    .new-person {
+      display: flex;
+      gap: var(--spacing-small);
+    }
+
+    .new-person input {
+      flex: 1;
+      min-width: 0;
+      font: inherit;
+      font-size: var(--font-size-small);
+      padding: 6px 10px;
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-small);
+    }
+
+    .new-person input:focus {
+      border-color: var(--color-accent);
+      outline: none;
+    }
+
+    .people {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .person-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--spacing-medium);
+      width: 100%;
+      text-align: left;
+      border: none;
+      border-bottom: 1px solid var(--color-border);
+      border-radius: 0;
+      padding: 10px var(--spacing-large);
+    }
+
+    .person-item:hover {
+      background: var(--color-row-hover);
+    }
+
+    .person-name {
+      font-weight: 600;
+    }
+
+    .person-meta {
+      color: var(--color-text-muted);
+      font-size: var(--font-size-xsmall);
+    }
+
+    .person-meta .bad {
+      color: var(--color-error);
+      font-weight: 600;
+    }
+
+    .person-total {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .panel-footer {
+      padding: var(--spacing-medium) var(--spacing-large);
+      border-top: 1px solid var(--color-border);
+    }
+
+    .danger-button:hover {
+      border-color: var(--color-error);
+      color: var(--color-error);
+    }
+
+    .kind-toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-small);
+      font-size: var(--font-size-small);
+      cursor: pointer;
+    }
+
+    .kind-badge {
+      padding: 0 6px;
+      border-radius: 4px;
+      background: var(--color-surface-alt);
+      border: 1px solid var(--color-border);
+      color: var(--color-text-muted);
+      font-size: var(--font-size-xsmall);
+      font-weight: 600;
+    }
+
+    .filter-select {
+      font: inherit;
+      font-size: var(--font-size-small);
+      font-weight: 500;
+      color: var(--color-text);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-small);
+      padding: 7px var(--spacing-small);
+      max-width: 220px;
+      cursor: pointer;
+    }
+
+    .filter-select:hover,
+    .filter-select:focus {
+      border-color: var(--color-accent);
+      outline: none;
+    }
+
+    .filter-select.active {
+      border-color: var(--color-accent);
+      background: var(--color-accent-soft);
+      font-weight: 600;
+    }
+
+    /* Yearly report */
+
+    .report-view {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-large);
+    }
+
+    .report-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-large);
+      box-shadow: var(--shadow);
+      overflow: auto;
+    }
+
+    .report-card h2 {
+      padding: var(--spacing-medium) var(--spacing-large);
+      font-size: var(--font-size-xlarge);
+      font-weight: 650;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .report-table tbody tr {
+      cursor: default;
+    }
+
+    .report-table td.label {
+      font-weight: 600;
+    }
+
+    .report-table td.empty {
+      color: var(--color-text-muted);
+    }
+
+    .report-table td.missing {
+      background: var(--color-error-soft);
+      color: var(--color-error);
+    }
+
+    .report-table td.unusual {
+      background: var(--color-warning-soft);
+      color: var(--color-warning);
+    }
+
+    .report-table th.total,
+    .report-table td.total {
+      border-left: 1px solid var(--color-border);
+      font-weight: 600;
+    }
+
+    .report-table tr.section td {
+      background: var(--color-surface-alt);
+      color: var(--color-text-muted);
+      font-size: var(--font-size-xsmall);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .report-table tr.subtotal td {
+      font-weight: 600;
+      border-top: 1px solid var(--color-border-strong);
+    }
+
+    .report-table tr.balance td {
+      font-weight: 700;
+      background: var(--color-accent-soft);
+      border-top: 2px solid var(--color-border-strong);
+    }
+
+    .report-empty {
+      padding: var(--spacing-large);
+      color: var(--color-text-muted);
+    }
+
+    .view-switch {
+      display: inline-flex;
+    }
+
+    .view-switch button {
+      border-radius: 0;
+      margin-left: -1px;
+    }
+
+    .view-switch button:first-child {
+      border-radius: var(--radius-small) 0 0 var(--radius-small);
+      margin-left: 0;
+    }
+
+    .view-switch button:last-child {
+      border-radius: 0 var(--radius-small) var(--radius-small) 0;
+    }
+
+    .view-switch button.active {
+      position: relative;
+      background: var(--color-accent-soft);
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+      font-weight: 600;
+    }
+
+    .year-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: var(--spacing-medium);
+      font-size: var(--font-size-small);
+    }
+
+    .year-bar-label {
+      margin-right: var(--spacing-xsmall);
+      color: var(--color-text-muted);
+      font-size: var(--font-size-xsmall);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .year-chip {
+      padding: 3px 12px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+    }
+
+    .year-chip.active {
+      background: var(--color-accent-soft);
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+      font-weight: 600;
+    }
+
+    .link-button {
+      border: none;
+      background: none;
+      padding: 3px var(--spacing-xsmall);
+      color: var(--color-accent);
+      text-decoration: underline;
+    }
+
+    .link-button:disabled {
+      color: var(--color-text-muted);
+      text-decoration: none;
+      cursor: default;
+    }
+
+    .totals-card {
+      max-width: 900px;
+    }
+
+    .print-title {
+      display: none;
+    }
+
+    /* Report labels: English on screen, Galician in print */
+    .lang-gl {
+      display: none;
+    }
+
+    .print-page {
+      display: contents;
+    }
+
+    /* Printing: only the report, in A4 portrait, without the controls.
+       A zero page margin removes the browser header and footer, so each
+       printed page gets its own padding instead. */
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
+    @media print {
+      body {
+        background: var(--color-surface);
+        padding: 0;
+      }
+
+      .lang-en {
+        display: none;
+      }
+
+      .lang-gl {
+        display: inline;
+      }
+
+      .report-view {
+        display: block;
+      }
+
+      /* Two years on each page */
+      .print-page {
+        display: block;
+        padding: 12mm 14mm;
+        break-after: page;
+      }
+
+      .print-page:last-child {
+        break-after: auto;
+      }
+
+      .report-card + .report-card {
+        margin-top: 8mm;
+      }
+
+      .report-card h2 {
+        padding: 6px 10px;
+        font-size: var(--font-size-large);
+      }
+
+      h1,
+      .toolbar,
+      .year-bar,
+      .error {
+        display: none;
+      }
+
+      .print-title {
+        display: block;
+        margin-bottom: var(--spacing-medium);
+      }
+
+      .print-title h2 {
+        font-size: var(--font-size-xlarge);
+      }
+
+      .report-card {
+        box-shadow: none;
+        overflow: visible;
+        max-width: none;
+        break-inside: avoid;
+      }
+
+      .report-table {
+        font-size: var(--font-size-xsmall);
+      }
+
+      .report-table th,
+      .report-table td {
+        padding: 2px 8px;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+
+    @media (max-width: 1000px) {
+      .workspace.with-panel {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .panel {
+        position: static;
+        max-height: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Community Payments</h1>
+
+    <label class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".csv,text/csv,text/plain">
+      <div class="drop-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M12 16V4M6 10l6-6 6 6M4 20h16" />
+        </svg>
+      </div>
+      <div class="drop-title">Drop a CSV here or <span>browse</span></div>
+      <div class="hint">
+        Fields separated by <kbd>;</kbd> · first row is the header
+      </div>
+    </label>
+
+    <div class="error" id="error" hidden></div>
+
+    <section id="result" hidden>
+      <div class="toolbar">
+        <div>
+          <div class="file-name" id="fileName"></div>
+          <div class="file-meta" id="fileMeta"></div>
+        </div>
+        <div class="actions">
+          <select class="filter-select" id="filterSelect" title="Show only one person"></select>
+          <div class="view-switch" id="viewSwitch">
+            <button type="button" data-mode="table">Table</button>
+            <button type="button" data-mode="report">By month</button>
+            <button type="button" data-mode="totals">By year</button>
+          </div>
+          <button type="button" id="printReport" title="Print or save as PDF">Print</button>
+          <button type="button" id="changeFile">Open another file</button>
+          <button type="button" id="exportJson" title="Download the people and findings">
+            Export JSON
+          </button>
+          <button type="button" id="importJson" title="Load people and findings from a JSON">
+            Import JSON
+          </button>
+          <input type="file" id="jsonInput" accept=".json,application/json" hidden>
+          <button type="button" id="deleteFile">Delete file</button>
+        </div>
+      </div>
+      <div class="workspace" id="workspace">
+        <div class="table-card" id="tableCard"></div>
+        <aside class="panel" id="panel" hidden></aside>
+      </div>
+      <div class="year-bar" id="yearBar" hidden></div>
+      <div class="report-view" id="reportView" hidden></div>
+    </section>
+  </div>
+
+  <script>
+    const SEPARATOR = ';';
+    // Matches "90,00", "836,08", "-12,5" and "1.234,56"
+    const AMOUNT_PATTERN = /^-?(\d{1,3}(\.\d{3})+|\d+),\d+$/;
+    // Matches "28-09-2023", "28/09/2023" and "28.09.2023"
+    const DATE_PATTERN = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/;
+    // Matches "2023-09-28"
+    const ISO_DATE_PATTERN = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
+    const MONTHS = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    // Month names for the printed report
+    const MONTHS_GL = [
+      'Xan', 'Feb', 'Mar', 'Abr', 'Mai', 'Xuñ',
+      'Xul', 'Ago', 'Set', 'Out', 'Nov', 'Dec',
+    ];
+
+    const container = document.querySelector('.container');
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const jsonInput = document.getElementById('jsonInput');
+    const errorBox = document.getElementById('error');
+    const result = document.getElementById('result');
+    const fileName = document.getElementById('fileName');
+    const fileMeta = document.getElementById('fileMeta');
+    const workspace = document.getElementById('workspace');
+    const tableCard = document.getElementById('tableCard');
+    const panel = document.getElementById('panel');
+    const reportView = document.getElementById('reportView');
+    const yearBar = document.getElementById('yearBar');
+    const filterSelect = document.getElementById('filterSelect');
+    const viewSwitch = document.getElementById('viewSwitch');
+    const printReport = document.getElementById('printReport');
+
+    const state = {
+      headers: [],
+      body: [],
+      columnCount: 0,
+      amountColumns: [],
+      groupColumn: 0,
+      dateColumn: 0,
+      amountColumn: 0,
+      view: { type: 'overview' },
+      record: null,
+    };
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) {
+        loadFile(fileInput.files[0]);
+      }
+      fileInput.value = '';
+    });
+
+    document.getElementById('changeFile').addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    // Years in the report: null shows all years, a list shows only those years
+    yearBar.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-year]');
+      if (!button) {
+        return;
+      }
+      if (button.dataset.year === 'all') {
+        state.record.years = null;
+      } else {
+        const year = Number(button.dataset.year);
+        const selected = state.record.years ?? [];
+        state.record.years = selected.includes(year)
+          ? selected.filter((item) => item !== year)
+          : [...selected, year];
+      }
+      writeRecord(state.record);
+      render();
+    });
+
+    viewSwitch.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-mode]');
+      if (button) {
+        state.record.mode = button.dataset.mode;
+        writeRecord(state.record);
+        render();
+      }
+    });
+
+    printReport.addEventListener('click', () => {
+      window.print();
+    });
+
+    // The page title is the default name of the PDF
+    const pageTitle = document.title;
+    window.addEventListener('beforeprint', () => {
+      document.title = 'Gastos da comunidade';
+    });
+    window.addEventListener('afterprint', () => {
+      document.title = pageTitle;
+    });
+
+    document.getElementById('exportJson').addEventListener('click', exportJson);
+
+    document.getElementById('importJson').addEventListener('click', () => {
+      jsonInput.click();
+    });
+
+    jsonInput.addEventListener('change', () => {
+      if (jsonInput.files.length) {
+        importJson(jsonInput.files[0]);
+      }
+      jsonInput.value = '';
+    });
+
+    document.getElementById('deleteFile').addEventListener('click', () => {
+      if (!state.record) {
+        return;
+      }
+      const message = `Delete ${state.record.fileName} and its findings ` +
+        'from this browser?';
+      if (confirm(message)) {
+        forgetFile(state.record.hash);
+        showDropZone();
+      }
+    });
+
+    document.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    document.addEventListener('dragleave', (event) => {
+      if (!event.relatedTarget) {
+        dropZone.classList.remove('dragover');
+      }
+    });
+
+    document.addEventListener('drop', (event) => {
+      event.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (event.dataTransfer.files.length) {
+        loadFile(event.dataTransfer.files[0]);
+      }
+    });
+
+    // A row of a known person opens that person. Any other row asks who paid it.
+    tableCard.addEventListener('click', (event) => {
+      const tr = event.target.closest('tbody tr');
+      if (!tr) {
+        return;
+      }
+      const concepto = conceptoOf(state.body[tr.dataset.index]);
+      const owner = ownerOf(concepto);
+      const view = state.view;
+      // A second click on the open person or concepto deselects it
+      if ((owner && view.type === 'person' && view.id === owner.id) ||
+        (!owner && view.type === 'assign' && view.concepto === concepto)) {
+        setView({ type: 'overview' });
+        return;
+      }
+      if (owner) {
+        setView({ type: 'person', id: owner.id });
+        return;
+      }
+      const lastPersonId = state.view.type === 'person'
+        ? state.view.id
+        : state.view.lastPersonId;
+      setView({ type: 'assign', concepto, lastPersonId });
+    });
+
+    document.addEventListener('keydown', (event) => {
+      const typing = event.target instanceof Element &&
+        event.target.closest('input, textarea, select');
+      if (event.key === 'Escape' && !typing && state.record && state.view.type !== 'overview') {
+        setView({ type: 'overview' });
+      }
+    });
+
+    // Filter: if a person is picked, the table and the report show only that person
+    filterSelect.addEventListener('change', () => {
+      setFilter(filterSelect.value || null);
+    });
+
+    panel.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-action]');
+      if (!button) {
+        return;
+      }
+      const { action, id, concepto } = button.dataset;
+      if (action === 'close') {
+        setView({ type: 'overview' });
+      } else if (action === 'show-rows') {
+        showRows(button.dataset.rows.split(',').map(Number));
+      } else if (action === 'open') {
+        setView({ type: 'person', id });
+      } else if (action === 'add') {
+        addConcepto(id, state.view.concepto);
+        setView({ type: 'person', id });
+      } else if (action === 'remove-concepto') {
+        removeConcepto(state.view.id, concepto);
+        render();
+      } else if (action === 'delete-person') {
+        const person = findPerson(id);
+        if (person && confirm(`Delete ${person.name}? The rows stay in the table.`)) {
+          deletePerson(id);
+          setView({ type: 'overview' });
+        }
+      }
+    });
+
+    panel.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = event.target.elements.name.value.trim();
+      if (name) {
+        const person = createPerson(name, state.view.concepto);
+        setView({ type: 'person', id: person.id });
+      }
+    });
+
+    panel.addEventListener('change', (event) => {
+      if (event.target.name === 'person-name') {
+        renamePerson(state.view.id, event.target.value.trim());
+        render();
+      } else if (event.target.name === 'person-kind') {
+        setPersonKind(state.view.id, event.target.checked ? 'expenses' : 'neighbor');
+        render();
+      }
+    });
+
+    // If the file was opened before, its stored rows are used instead of parsing it
+    async function loadFile(file) {
+      const buffer = await file.arrayBuffer();
+      const hash = await hashBuffer(buffer);
+      let record = readRecord(hash);
+
+      if (!record) {
+        const rows = parseCsv(decodeText(buffer));
+        if (rows.length === 0) {
+          showError(`${file.name} is empty.`);
+          return;
+        }
+        const [headers, ...body] = rows;
+        sortByFirstColumnDate(body);
+        record = createRecord(hash, file.name, headers, body);
+      }
+
+      record.lastOpened = new Date().toISOString();
+      record.openCount += 1;
+      if (!writeRecord(record)) {
+        showError(`${file.name} is too big to keep in this browser. ` +
+          'It will be gone after a page reload.');
+      } else {
+        errorBox.hidden = true;
+      }
+      localStorage.setItem(CURRENT_KEY, hash);
+      showRecord(record);
+    }
+
+    function showRecord(record) {
+      state.record = record;
+      state.headers = record.headers;
+      state.body = record.rows;
+      state.columnCount = Math.max(
+        record.headers.length,
+        ...record.rows.map((row) => row.length),
+      );
+      state.amountColumns = findColumns(record.rows, isAmount);
+      record.people ??= [];
+      for (const person of record.people) {
+        person.color ??= nextColor(record.people);
+      }
+      record.view ??= { type: 'overview' };
+      state.view = record.view;
+
+      pickColumns();
+      render();
+
+      fileName.textContent = record.fileName;
+      panel.hidden = false;
+      workspace.classList.add('with-panel');
+      result.hidden = false;
+      container.classList.add('compact');
+    }
+
+    function render() {
+      const mode = state.record.mode ?? 'table';
+      const showReport = mode !== 'table';
+      workspace.hidden = showReport;
+      reportView.hidden = !showReport;
+      yearBar.hidden = !showReport;
+      printReport.hidden = !showReport;
+      for (const button of viewSwitch.querySelectorAll('button')) {
+        button.classList.toggle('active', button.dataset.mode === mode);
+      }
+      if (mode === 'report') {
+        renderReport();
+      } else if (mode === 'totals') {
+        renderReport(true);
+      } else {
+        renderTable();
+        renderPanel();
+      }
+      renderFilterSelect();
+      renderMeta();
+    }
+
+    function renderMeta() {
+      const owners = conceptoOwners();
+      const assigned = state.body.filter((row) => owners.has(conceptoOf(row))).length;
+      const people = state.record.people.length;
+      let text = `${state.body.length} rows · ${assigned} assigned to ` +
+        `${people} ${people === 1 ? 'person' : 'people'}`;
+      if (activeFilter() && (state.record.mode ?? 'table') === 'table') {
+        const shown = state.body.filter((row) => passesFilter(owners.get(conceptoOf(row))));
+        text += ` · showing ${shown.length}`;
+      }
+      fileMeta.textContent = text + ' · click a row to add it to a person';
+    }
+
+    function setView(view) {
+      state.view = view;
+      state.record.view = view;
+      writeRecord(state.record);
+      render();
+    }
+
+    function showDropZone() {
+      state.record = null;
+      state.view = { type: 'overview' };
+      result.hidden = true;
+      errorBox.hidden = true;
+      container.classList.remove('compact');
+    }
+
+    function restoreCurrentFile() {
+      const hash = localStorage.getItem(CURRENT_KEY);
+      const record = hash ? readRecord(hash) : null;
+      if (record && record.rows) {
+        showRecord(record);
+      }
+    }
+
+    // Storage: one record per file, keyed by the SHA-256 hash of its bytes.
+    // A record keeps the parsed rows and the findings until the file is deleted.
+    // The last opened file is shown again after a page reload.
+
+    const STORAGE_PREFIX = 'csv-viewer:file:';
+    const CURRENT_KEY = 'csv-viewer:current';
+
+    async function hashBuffer(buffer) {
+      const digest = await crypto.subtle.digest('SHA-256', buffer);
+      return [...new Uint8Array(digest)]
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
+    }
+
+    function readRecord(hash) {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_PREFIX + hash));
+      } catch {
+        return null;
+      }
+    }
+
+    function writeRecord(record) {
+      try {
+        localStorage.setItem(STORAGE_PREFIX + record.hash, JSON.stringify(record));
+        return true;
+      } catch (error) {
+        console.error('Could not save to local storage', error);
+        return false;
+      }
+    }
+
+    function createRecord(hash, name, headers, rows) {
+      return {
+        hash,
+        fileName: name,
+        firstOpened: new Date().toISOString(),
+        openCount: 0,
+        headers,
+        rows,
+        people: [],
+        view: { type: 'overview' },
+        findings: [],
+      };
+    }
+
+    function getFindings() {
+      return state.record ? state.record.findings : [];
+    }
+
+    // A finding is any plain object. It gets an id and a creation time.
+    function addFinding(data) {
+      if (!state.record) {
+        return null;
+      }
+      const finding = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...data };
+      state.record.findings.push(finding);
+      writeRecord(state.record);
+      return finding;
+    }
+
+    function updateFinding(id, changes) {
+      const finding = getFindings().find((item) => item.id === id);
+      if (!finding) {
+        return null;
+      }
+      Object.assign(finding, changes, { id, updatedAt: new Date().toISOString() });
+      writeRecord(state.record);
+      return finding;
+    }
+
+    function removeFinding(id) {
+      if (!state.record) {
+        return;
+      }
+      state.record.findings = state.record.findings.filter((item) => item.id !== id);
+      writeRecord(state.record);
+    }
+
+    function listStoredFiles() {
+      return Object.keys(localStorage)
+        .filter((key) => key.startsWith(STORAGE_PREFIX))
+        .map((key) => readRecord(key.slice(STORAGE_PREFIX.length)))
+        .filter(Boolean);
+    }
+
+    function forgetFile(hash) {
+      localStorage.removeItem(STORAGE_PREFIX + hash);
+      if (localStorage.getItem(CURRENT_KEY) === hash) {
+        localStorage.removeItem(CURRENT_KEY);
+      }
+      if (state.record && state.record.hash === hash) {
+        state.record = null;
+      }
+    }
+
+    // People: each person owns a list of concepto values. Every row with one of
+    // those values counts as a payment of that person.
+
+    function conceptoOf(row) {
+      return row[state.groupColumn] ?? '';
+    }
+
+    function conceptoOwners() {
+      const owners = new Map();
+      for (const person of state.record.people) {
+        for (const concepto of person.conceptos) {
+          owners.set(concepto, person);
+        }
+      }
+      return owners;
+    }
+
+    function ownerOf(concepto) {
+      return conceptoOwners().get(concepto) ?? null;
+    }
+
+    function findPerson(id) {
+      return state.record.people.find((person) => person.id === id) ?? null;
+    }
+
+    function createPerson(name, concepto) {
+      const person = {
+        id: crypto.randomUUID(),
+        name,
+        color: nextColor(state.record.people),
+        conceptos: [concepto],
+      };
+      state.record.people.push(person);
+      writeRecord(state.record);
+      return person;
+    }
+
+    function addConcepto(id, concepto) {
+      const person = findPerson(id);
+      if (person && !ownerOf(concepto)) {
+        person.conceptos.push(concepto);
+        writeRecord(state.record);
+      }
+    }
+
+    function removeConcepto(id, concepto) {
+      const person = findPerson(id);
+      if (person) {
+        person.conceptos = person.conceptos.filter((item) => item !== concepto);
+        writeRecord(state.record);
+      }
+    }
+
+    function renamePerson(id, name) {
+      const person = findPerson(id);
+      if (person && name) {
+        person.name = name;
+        writeRecord(state.record);
+      }
+    }
+
+    // "expenses" marks a category of costs, not a neighbor who pays
+    function setPersonKind(id, kind) {
+      const person = findPerson(id);
+      if (person) {
+        person.kind = kind;
+        writeRecord(state.record);
+      }
+    }
+
+    function isExpenses(person) {
+      return person.kind === 'expenses';
+    }
+
+    function deletePerson(id) {
+      state.record.people = state.record.people.filter((person) => person.id !== id);
+      writeRecord(state.record);
+    }
+
+    const PERSON_COLORS = 10;
+
+    // The first color that no person uses yet. If all are used, colors repeat.
+    function nextColor(people) {
+      const used = new Set(people.map((person) => person.color));
+      for (let color = 0; color < PERSON_COLORS; color++) {
+        if (!used.has(color)) {
+          return color;
+        }
+      }
+      return people.length % PERSON_COLORS;
+    }
+
+    function applyColor(node, person) {
+      node.style.setProperty('--person-fg', `var(--person-${person.color})`);
+      node.style.setProperty('--person-text', `var(--person-${person.color}-text)`);
+      node.style.setProperty('--person-bg',
+        `color-mix(in srgb, var(--person-${person.color}) 45%, var(--color-surface))`);
+      return node;
+    }
+
+    function personDot(person) {
+      return applyColor(element('span', 'person-dot'), person);
+    }
+
+    function sortedPeople() {
+      return [...state.record.people].sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    // Export and import: the JSON holds the data made in this tool (people and
+    // findings), so it can be kept next to the CSV. The rows stay in the CSV.
+
+    const EXPORT_VERSION = 1;
+
+    function exportJson() {
+      const record = state.record;
+      const data = {
+        app: 'csv-viewer',
+        version: EXPORT_VERSION,
+        exportedAt: new Date().toISOString(),
+        file: { name: record.fileName, hash: record.hash },
+        people: record.people,
+        findings: record.findings,
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = record.fileName.replace(/\.[^.]*$/, '') + '.json';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    async function importJson(file) {
+      let data;
+      try {
+        data = JSON.parse(await file.text());
+      } catch {
+        showError(`${file.name} is not a valid JSON file.`);
+        return;
+      }
+      if (data?.app !== 'csv-viewer' || !Array.isArray(data.people)) {
+        showError(`${file.name} is not a Community Payments export.`);
+        return;
+      }
+
+      const record = state.record;
+      if (data.file?.hash && data.file.hash !== record.hash) {
+        const message = `${file.name} was made for ${data.file.name}, not for ` +
+          `${record.fileName}. Conceptos that are the same in both files will ` +
+          'still match. Import it?';
+        if (!confirm(message)) {
+          return;
+        }
+      }
+      if (record.people.length > 0) {
+        const message = `Replace the ${record.people.length} people of this file ` +
+          `with the ${data.people.length} people in ${file.name}?`;
+        if (!confirm(message)) {
+          return;
+        }
+      }
+
+      record.people = [];
+      for (const item of data.people) {
+        record.people.push({
+          id: typeof item.id === 'string' ? item.id : crypto.randomUUID(),
+          name: String(item.name ?? 'Unnamed'),
+          color: Number.isInteger(item.color) ? item.color : nextColor(record.people),
+          conceptos: Array.isArray(item.conceptos) ? item.conceptos.map(String) : [],
+          kind: item.kind === 'expenses' ? 'expenses' : 'neighbor',
+        });
+      }
+      record.findings = Array.isArray(data.findings) ? data.findings : [];
+      record.filter = null;
+      errorBox.hidden = true;
+      setView({ type: 'overview' });
+    }
+
+    // Lets you try the storage from the browser console until there is a UI
+    window.csvViewer = {
+      getFindings,
+      addFinding,
+      updateFinding,
+      removeFinding,
+      listStoredFiles,
+      forgetFile,
+      get record() {
+        return state.record;
+      },
+    };
+
+    // Bank exports are often in Windows-1252, so fall back when UTF-8 fails
+    function decodeText(buffer) {
+      try {
+        return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+      } catch {
+        return new TextDecoder('windows-1252').decode(buffer);
+      }
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let field = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+
+        if (inQuotes) {
+          if (char === '"' && text[i + 1] === '"') {
+            field += '"';
+            i++;
+          } else if (char === '"') {
+            inQuotes = false;
+          } else {
+            field += char;
+          }
+        } else if (char === '"') {
+          inQuotes = true;
+        } else if (char === SEPARATOR) {
+          row.push(field);
+          field = '';
+        } else if (char === '\n' || char === '\r') {
+          if (char === '\r' && text[i + 1] === '\n') {
+            i++;
+          }
+          row.push(field);
+          rows.push(row);
+          row = [];
+          field = '';
+        } else {
+          field += char;
+        }
+      }
+
+      if (field !== '' || row.length) {
+        row.push(field);
+        rows.push(row);
+      }
+
+      return rows
+        .map((cells) => cells.map((cell) => cell.trim()))
+        .filter((cells) => cells.some((cell) => cell !== ''));
+    }
+
+    function isAmount(value) {
+      return AMOUNT_PATTERN.test(value);
+    }
+
+    function parseAmount(value) {
+      return Number(value.replace(/\./g, '').replace(',', '.'));
+    }
+
+    function formatEuros(number) {
+      return `${number.toFixed(2)} €`;
+    }
+
+    function formatAmount(value) {
+      return formatEuros(parseAmount(value));
+    }
+
+    function isDate(value) {
+      return parseDate(value) !== null;
+    }
+
+    function parseDate(value) {
+      let match = DATE_PATTERN.exec(value);
+      if (match) {
+        return { day: +match[1], month: +match[2], year: +match[3] };
+      }
+      match = ISO_DATE_PATTERN.exec(value);
+      if (match) {
+        return { day: +match[3], month: +match[2], year: +match[1] };
+      }
+      return null;
+    }
+
+    // Counts months from year 0, so two dates can be compared by month
+    function monthIndex(date) {
+      return date.year * 12 + date.month - 1;
+    }
+
+    function formatDate(date) {
+      const day = String(date.day).padStart(2, '0');
+      const month = String(date.month).padStart(2, '0');
+      return `${day}-${month}-${date.year}`;
+    }
+
+    // A column matches if every non-empty cell passes the test
+    function findColumns(body, test) {
+      const result = [];
+      for (let col = 0; col < state.columnCount; col++) {
+        const values = body.map((row) => row[col] ?? '').filter((v) => v !== '');
+        result.push(values.length > 0 && values.every(test));
+      }
+      return result;
+    }
+
+    function normalize(text) {
+      return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    }
+
+    function columnLabel(col) {
+      return state.headers[col] || `Column ${col + 1}`;
+    }
+
+    // Group by the "Concepto" column, and use the first date and amount columns
+    function pickColumns() {
+      const allColumns = [...Array(state.columnCount).keys()];
+      const dateColumns = findColumns(state.body, isDate);
+
+      const conceptColumn = allColumns.find((col) =>
+        normalize(state.headers[col] ?? '').includes('concepto'));
+      const textColumn = allColumns.find((col) =>
+        !state.amountColumns[col] && !dateColumns[col]);
+      state.groupColumn = conceptColumn ?? textColumn ?? 0;
+      state.dateColumn = Math.max(0, dateColumns.indexOf(true));
+      state.amountColumn = Math.max(0, state.amountColumns.indexOf(true));
+    }
+
+    const UNASSIGNED_FILTER = 'none';
+
+    // The filter is a person id, UNASSIGNED_FILTER or null for all rows.
+    // A deleted person counts as no filter.
+    function activeFilter() {
+      const filter = state.record.filter;
+      if (filter === UNASSIGNED_FILTER || (typeof filter === 'string' && findPerson(filter))) {
+        return filter;
+      }
+      return null;
+    }
+
+    function passesFilter(owner) {
+      const filter = activeFilter();
+      return filter === null || filter === (owner ? owner.id : UNASSIGNED_FILTER);
+    }
+
+    function setFilter(filter) {
+      state.record.filter = filter;
+      writeRecord(state.record);
+      render();
+    }
+
+    function renderFilterSelect() {
+      const filter = activeFilter();
+      const option = (value, text) => {
+        const node = element('option', '', text);
+        node.value = value;
+        return node;
+      };
+      filterSelect.replaceChildren(
+        option('', 'Show all'),
+        ...sortedPeople().map((person) => option(person.id, person.name)),
+        option(UNASSIGNED_FILTER, 'Not assigned'),
+      );
+      filterSelect.value = filter ?? '';
+      filterSelect.classList.toggle('active', filter !== null);
+    }
+
+    function renderTable() {
+      const groupColumn = state.groupColumn;
+      const owners = conceptoOwners();
+      const view = state.view;
+      const table = document.createElement('table');
+      const headerRow = table.createTHead().insertRow();
+      headerRow.appendChild(element('th', '', 'Person'));
+      for (let col = 0; col < state.columnCount; col++) {
+        const th = document.createElement('th');
+        th.textContent = state.headers[col] ?? '';
+        th.classList.toggle('amount', state.amountColumns[col]);
+        th.classList.toggle('group-column', col === groupColumn);
+        headerRow.appendChild(th);
+      }
+
+      const tbody = table.createTBody();
+      state.body.forEach((row, index) => {
+        const concepto = conceptoOf(row);
+        const owner = owners.get(concepto);
+        if (!passesFilter(owner)) {
+          return;
+        }
+        const tr = tbody.insertRow();
+        tr.dataset.index = index;
+
+        const personCell = tr.insertCell();
+        if (owner) {
+          const tag = element('span', 'person-tag', owner.name);
+          tag.title = owner.name;
+          personCell.appendChild(tag);
+          applyColor(tr, owner);
+          tr.classList.add('assigned');
+        }
+        tr.classList.toggle('selected',
+          Boolean(owner) && view.type === 'person' && owner.id === view.id);
+        tr.classList.toggle('pending', view.type === 'assign' && concepto === view.concepto);
+
+        for (let col = 0; col < state.columnCount; col++) {
+          const td = tr.insertCell();
+          const value = row[col] ?? '';
+          if (state.amountColumns[col]) {
+            td.classList.add('amount');
+            td.textContent = isAmount(value) ? formatAmount(value) : value;
+          } else {
+            td.textContent = value;
+          }
+        }
+      });
+
+      tableCard.replaceChildren(table);
+    }
+
+    // The amount that appears most often is the expected monthly payment
+    function mostCommonAmount(payments) {
+      const counts = new Map();
+      for (const payment of payments) {
+        const key = payment.amount.toFixed(2);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+      let best = null;
+      for (const [key, count] of counts) {
+        if (best === null || count > counts.get(best)) {
+          best = key;
+        }
+      }
+      return best === null ? null : Number(best);
+    }
+
+    function collectPayments(conceptos) {
+      const wanted = new Set(conceptos);
+      return paymentsWhere((row) => wanted.has(conceptoOf(row)));
+    }
+
+    function paymentsWhere(test) {
+      const { dateColumn, amountColumn } = state;
+      const payments = [];
+      let lastMonth = null;
+
+      state.body.forEach((row, index) => {
+        const date = parseDate(row[dateColumn] ?? '');
+        if (date && (lastMonth === null || monthIndex(date) > lastMonth)) {
+          lastMonth = monthIndex(date);
+        }
+        if (!test(row)) {
+          return;
+        }
+        const value = row[amountColumn] ?? '';
+        if (date && isAmount(value)) {
+          payments.push({ date, amount: parseAmount(value), index });
+        }
+      });
+
+      payments.sort((a, b) =>
+        monthIndex(a.date) - monthIndex(b.date) || a.date.day - b.date.day);
+      return { payments, lastMonth };
+    }
+
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) {
+        node.className = className;
+      }
+      if (text !== undefined) {
+        node.textContent = text;
+      }
+      return node;
+    }
+
+    // Scrolls the table to the first of the rows and makes them flash
+    function showRows(indexes) {
+      // If the filter hides one of the rows, show all rows again first
+      const missing = indexes.some((index) =>
+        !tableCard.querySelector(`tbody tr[data-index="${index}"]`));
+      if (missing && activeFilter()) {
+        setFilter(null);
+      }
+      const rows = indexes
+        .map((index) => tableCard.querySelector(`tbody tr[data-index="${index}"]`))
+        .filter(Boolean);
+      if (rows.length === 0) {
+        return;
+      }
+      rows[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      for (const tr of rows) {
+        tr.classList.remove('flash');
+        // Reading offsetWidth restarts the animation if the row flashes already
+        void tr.offsetWidth;
+        tr.classList.add('flash');
+        tr.addEventListener('animationend', () => tr.classList.remove('flash'), { once: true });
+      }
+    }
+
+    function sumPayments(payments) {
+      return payments.reduce((sum, payment) => sum + payment.amount, 0);
+    }
+
+    // Months from the first payment to the last date in the file with no payment
+    function countMissing(payments, lastMonth) {
+      if (payments.length === 0) {
+        return 0;
+      }
+      const paid = new Set(payments.map((payment) => monthIndex(payment.date)));
+      let missing = 0;
+      for (let index = monthIndex(payments[0].date); index <= lastMonth; index++) {
+        if (!paid.has(index)) {
+          missing++;
+        }
+      }
+      return missing;
+    }
+
+    function actionButton(text, className, data) {
+      const button = element('button', className, text);
+      button.type = 'button';
+      Object.assign(button.dataset, data);
+      return button;
+    }
+
+    function panelHeader(label, title, closable) {
+      const header = element('div', 'panel-header');
+      const heading = element('div', 'panel-heading');
+      const labelNode = element('div', 'panel-label');
+      labelNode.append(label);
+      heading.append(labelNode, title);
+      header.appendChild(heading);
+      if (closable) {
+        const closeButton = actionButton('×', 'close-button', { action: 'close' });
+        closeButton.title = 'Back to all people';
+        header.appendChild(closeButton);
+      }
+      return header;
+    }
+
+    function renderPanel() {
+      const view = state.view;
+      const person = view.type === 'person' ? findPerson(view.id) : null;
+      let nodes;
+      if (person) {
+        nodes = renderPersonView(person);
+      } else if (view.type === 'assign') {
+        nodes = renderAssignView(view);
+      } else {
+        nodes = renderOverview();
+      }
+      panel.replaceChildren(...nodes);
+    }
+
+    function renderOverview() {
+      const nodes = [panelHeader('Report', element('div', 'panel-title', 'People'), false)];
+      const hint = element('div', 'panel-section');
+      hint.appendChild(element('p', 'panel-hint',
+        'Click a row in the table to add its concepto to a person.'));
+      nodes.push(hint);
+
+      const list = element('div', 'people');
+      for (const person of sortedPeople()) {
+        const { payments, lastMonth } = collectPayments(person.conceptos);
+        const missing = countMissing(payments, lastMonth);
+
+        const info = element('div');
+        const meta = element('div', 'person-meta', `${payments.length} payments · `);
+        if (isExpenses(person)) {
+          meta.append('expenses');
+        } else if (missing > 0) {
+          meta.appendChild(element('span', 'bad',
+            `${missing} missing ${missing === 1 ? 'month' : 'months'}`));
+        } else {
+          meta.append('no missing months');
+        }
+        const name = element('div', 'person-name');
+        name.append(personDot(person), person.name);
+        info.append(name, meta);
+
+        const item = actionButton('', 'person-item', { action: 'open', id: person.id });
+        item.append(info, element('div', 'person-total', formatEuros(sumPayments(payments))));
+        list.appendChild(item);
+      }
+      nodes.push(list);
+      return nodes;
+    }
+
+    function renderAssignView(view) {
+      const { payments } = collectPayments([view.concepto]);
+      const title = element('div', 'panel-title', view.concepto || '(empty)');
+      const nodes = [panelHeader(columnLabel(state.groupColumn), title, true)];
+
+      const section = element('div', 'panel-section');
+      section.appendChild(element('p', 'panel-hint',
+        `${payments.length} payments · ${formatEuros(sumPayments(payments))}. ` +
+        'Who made them?'));
+
+      const lastPerson = view.lastPersonId ? findPerson(view.lastPersonId) : null;
+      if (lastPerson) {
+        section.appendChild(actionButton(`Add to ${lastPerson.name}`, 'primary-button',
+          { action: 'add', id: lastPerson.id }));
+      }
+
+      const others = sortedPeople().filter((person) => person !== lastPerson);
+      if (others.length) {
+        section.appendChild(element('div', 'panel-label', lastPerson ? 'Or add to' : 'Add to'));
+        const chips = element('div', 'chips');
+        for (const person of others) {
+          const chip = actionButton('', 'chip', { action: 'add', id: person.id });
+          chip.append(personDot(person), person.name);
+          chips.appendChild(chip);
+        }
+        section.appendChild(chips);
+      }
+
+      section.appendChild(element('div', 'panel-label', 'New person'));
+      const form = element('form', 'new-person');
+      const input = element('input');
+      input.name = 'name';
+      input.value = view.concepto;
+      input.placeholder = 'Name';
+      const submit = element('button', '', 'Create');
+      submit.type = 'submit';
+      form.append(input, submit);
+      section.appendChild(form);
+
+      nodes.push(section);
+      return nodes;
+    }
+
+    function renderPersonView(person) {
+      const nameInput = element('input', 'name-input');
+      nameInput.name = 'person-name';
+      nameInput.value = person.name;
+      nameInput.title = 'Click to rename';
+      const label = element('span');
+      label.append(personDot(person), isExpenses(person) ? 'Expenses' : 'Person');
+      const nodes = [panelHeader(label, nameInput, true)];
+
+      const { payments, lastMonth } = collectPayments(person.conceptos);
+      const expected = mostCommonAmount(payments);
+
+      const stats = element('div', 'stats');
+      for (const [label, value] of [
+        ['Payments', String(payments.length)],
+        ['Usual amount', expected === null ? '—' : formatEuros(expected)],
+        ['Total', formatEuros(sumPayments(payments))],
+      ]) {
+        const stat = element('div', 'stat');
+        stat.append(element('div', 'panel-label', label), element('div', 'stat-value', value));
+        stats.appendChild(stat);
+      }
+      nodes.push(stats);
+
+      const conceptos = element('div', 'panel-section');
+      conceptos.appendChild(element('div', 'panel-label', columnLabel(state.groupColumn)));
+      const chips = element('div', 'chips');
+      for (const concepto of person.conceptos) {
+        const chip = element('span', 'concepto-chip', concepto || '(empty)');
+        const remove = actionButton('×', '', { action: 'remove-concepto', concepto });
+        remove.title = 'Remove from this person';
+        chip.appendChild(remove);
+        chips.appendChild(chip);
+      }
+      conceptos.append(chips, element('p', 'panel-hint',
+        'Click another row in the table to add more.'));
+
+      const kindToggle = element('label', 'kind-toggle');
+      const kindInput = element('input');
+      kindInput.type = 'checkbox';
+      kindInput.name = 'person-kind';
+      kindInput.checked = isExpenses(person);
+      kindToggle.append(kindInput, 'Expenses category, not a neighbor');
+      conceptos.appendChild(kindToggle);
+      nodes.push(conceptos);
+
+      if (payments.length === 0) {
+        nodes.push(element('p', 'panel-empty',
+          'No rows of this person have a valid date and amount.'));
+      } else if (isExpenses(person)) {
+        nodes.push(...renderYears(payments, null, lastMonth, false));
+      } else {
+        const legend = element('div', 'legend');
+        legend.append(
+          element('span', 'paid', 'Paid'),
+          element('span', 'missing', 'Missing'),
+          element('span', 'unusual', 'Check amount'),
+        );
+        nodes.push(legend, ...renderYears(payments, expected, lastMonth));
+      }
+
+      const footer = element('div', 'panel-footer');
+      footer.appendChild(actionButton('Delete person', 'danger-button',
+        { action: 'delete-person', id: person.id }));
+      nodes.push(footer);
+      return nodes;
+    }
+
+    // Yearly report: one table per year, with a row per neighbor, a row per
+    // expenses category and the balance. Months follow the same checks as the
+    // person report.
+    function renderReport(compact = false) {
+      const owners = conceptoOwners();
+      const people = sortedPeople();
+      const lines = people.map((person) => ({
+        person,
+        ...collectPayments(person.conceptos),
+      }));
+      const unassigned = paymentsWhere((row) => !owners.has(conceptoOf(row)));
+      const lastMonth = unassigned.lastMonth;
+
+      const years = new Set();
+      for (const { payments } of [...lines, unassigned]) {
+        for (const payment of payments) {
+          years.add(payment.date.year);
+        }
+      }
+
+      if (years.size === 0) {
+        yearBar.replaceChildren();
+        reportView.replaceChildren(element('p', 'report-empty',
+          'There are no rows with a valid date and amount.'));
+        return;
+      }
+
+      const filter = activeFilter();
+      const shown = lines.filter((line) => passesFilter(line.person));
+      const neighbors = shown.filter((line) => !isExpenses(line.person));
+      const expenses = shown.filter((line) => isExpenses(line.person));
+      const other = passesFilter(null) ? unassigned.payments : [];
+      const allYears = [...years].sort((a, b) => b - a);
+      const picked = (state.record.years ?? []).filter((year) => years.has(year));
+      renderYearBar(allYears, picked);
+      const shownYears = picked.length ? allYears.filter((y) => picked.includes(y)) : allYears;
+
+      const cards = shownYears
+        .map((year) => renderReportYear(year, neighbors, expenses, other, lastMonth,
+          !filter, compact))
+        .filter(Boolean);
+      if (cards.length === 0) {
+        reportView.replaceChildren(element('p', 'report-empty',
+          'The selected person has no rows with a valid date and amount.'));
+        return;
+      }
+
+      const printTitle = element('div', 'print-title');
+      printTitle.appendChild(element('h2', '', 'Gastos da comunidade'));
+
+      // Group the years two by two, one group for each printed page
+      const pages = [];
+      for (let i = 0; i < cards.length; i += 2) {
+        const page = element('div', 'print-page');
+        page.append(...cards.slice(i, i + 2));
+        pages.push(page);
+      }
+      pages[0].prepend(printTitle);
+      reportView.replaceChildren(...pages);
+    }
+
+    // If no year is picked, all years show and no chip is active
+    function renderYearBar(allYears, picked) {
+      const nodes = [element('span', 'year-bar-label', 'Years')];
+      for (const year of allYears) {
+        const chip = element('button', 'year-chip', String(year));
+        chip.type = 'button';
+        chip.dataset.year = year;
+        chip.classList.toggle('active', picked.includes(year));
+        nodes.push(chip);
+      }
+      const all = element('button', 'link-button',
+        picked.length ? 'Show all years' : 'All years shown');
+      all.type = 'button';
+      all.dataset.year = 'all';
+      all.disabled = picked.length === 0;
+      nodes.push(all);
+      yearBar.replaceChildren(...nodes);
+    }
+
+    // Returns null if the year has nothing to show. In compact form, there are
+    // no month columns, only the total.
+    function renderReportYear(year, neighbors, expenses, unassigned, lastMonth,
+      showBalance, compact) {
+      const card = element('section', compact ? 'report-card totals-card' : 'report-card');
+      const table = element('table', 'report-table');
+      const headerRow = table.createTHead().insertRow();
+      headerRow.appendChild(element('th', '', ''));
+      if (!compact) {
+        MONTHS.forEach((month, index) => {
+          const th = element('th', 'amount');
+          th.appendChild(translated(month, MONTHS_GL[index]));
+          headerRow.appendChild(th);
+        });
+      }
+      headerRow.appendChild(element('th', 'amount total', 'Total'));
+
+      const body = table.createTBody();
+      const inYear = (payments) => payments.filter((p) => p.date.year === year);
+      const monthSums = (payments) => {
+        const sums = Array(12).fill(0);
+        for (const payment of payments) {
+          sums[payment.date.month - 1] += payment.amount;
+        }
+        return sums;
+      };
+
+      const addSection = (title) => {
+        const cell = body.insertRow().insertCell();
+        cell.colSpan = compact ? 2 : 14;
+        cell.append(title);
+        cell.parentElement.className = 'section';
+      };
+
+      const addRow = (label, sums, className = '', statuses = []) => {
+        const tr = body.insertRow();
+        tr.className = className;
+        const labelCell = tr.insertCell();
+        labelCell.className = 'label';
+        labelCell.append(label);
+        sums.forEach((sum, month) => {
+          if (compact) {
+            return;
+          }
+          const td = tr.insertCell();
+          td.className = 'amount';
+          const status = statuses[month];
+          if (status === 'missing') {
+            td.classList.add('missing');
+            td.textContent = '—';
+          } else if (sum === 0 && status !== 'paid' && status !== 'unusual') {
+            td.classList.add('empty');
+            td.textContent = '';
+          } else {
+            td.textContent = formatEuros(sum);
+            if (status === 'unusual') {
+              td.classList.add('unusual');
+            }
+          }
+        });
+        const total = tr.insertCell();
+        total.className = 'amount total';
+        total.textContent = formatEuros(sums.reduce((a, b) => a + b, 0));
+        return sums;
+      };
+
+      const addSum = (a, b) => a.map((value, index) => value + b[index]);
+      const personLabel = (person) => {
+        const label = element('span');
+        label.append(personDot(person), person.name);
+        return label;
+      };
+
+      let paymentsTotal = Array(12).fill(0);
+      const neighborLines = neighbors.filter((line) => line.payments.length > 0 &&
+        Math.floor(monthIndex(line.payments[0].date) / 12) <= year);
+      if (neighborLines.length) {
+        addSection(translated('Neighbors', 'Veciños'));
+        for (const line of neighborLines) {
+          const payments = inYear(line.payments);
+          const statuses = monthStatuses(line.payments, payments, year, lastMonth);
+          const sums = addRow(personLabel(line.person), monthSums(payments), '', statuses);
+          paymentsTotal = addSum(paymentsTotal, sums);
+        }
+        addRow(translated('Total payments', 'Total de pagamentos'), paymentsTotal, 'subtotal');
+      }
+
+      let expensesTotal = Array(12).fill(0);
+      const expenseLines = expenses.filter((line) => inYear(line.payments).length > 0);
+      if (expenseLines.length) {
+        addSection(translated('Expenses', 'Gastos'));
+        for (const line of expenseLines) {
+          const sums = addRow(personLabel(line.person), monthSums(inYear(line.payments)));
+          expensesTotal = addSum(expensesTotal, sums);
+        }
+        addRow(translated('Total expenses', 'Total de gastos'), expensesTotal, 'subtotal');
+      }
+
+      let otherTotal = Array(12).fill(0);
+      const other = inYear(unassigned);
+      if (other.length) {
+        addSection(translated('Not assigned', 'Sen asignar'));
+        otherTotal = addRow(unassignedLabel(other.length), monthSums(other));
+      }
+
+      if (!neighborLines.length && !expenseLines.length && !other.length) {
+        return null;
+      }
+
+      const balance = addSum(addSum(paymentsTotal, expensesTotal), otherTotal);
+      if (showBalance) {
+        addRow(translated('Balance', 'Resultado neto anual'), balance, 'balance');
+      }
+      card.append(element('h2', '', String(year)), table);
+      return card;
+    }
+
+    function unassignedLabel(count) {
+      return translated(
+        `${count} ${count === 1 ? 'row' : 'rows'} without a person`,
+        `${count} ${count === 1 ? 'movemento' : 'movementos'} sen asignar`,
+      );
+    }
+
+    // A label with English for the screen and Galician for print
+    function translated(english, galician) {
+      const node = element('span');
+      node.append(element('span', 'lang-en', english), element('span', 'lang-gl', galician));
+      return node;
+    }
+
+    // Status of each month of a year for a neighbor: missing, unusual, paid or
+    // out of range, with the same rules as the person report
+    function monthStatuses(allPayments, yearPayments, year, lastMonth) {
+      const expected = mostCommonAmount(allPayments);
+      const firstMonth = monthIndex(allPayments[0].date);
+      const statuses = [];
+      for (let month = 1; month <= 12; month++) {
+        const index = year * 12 + month - 1;
+        const monthPayments = yearPayments.filter((p) => p.date.month === month);
+        const total = sumPayments(monthPayments);
+        if (index < firstMonth || index > lastMonth) {
+          statuses.push(monthPayments.length ? 'paid' : 'out-of-range');
+        } else if (monthPayments.length === 0) {
+          statuses.push('missing');
+        } else if (monthPayments.length > 1 || total.toFixed(2) !== expected.toFixed(2)) {
+          statuses.push('unusual');
+        } else {
+          statuses.push('paid');
+        }
+      }
+      return statuses;
+    }
+
+    // Months between the first payment and the last date in the file
+    // must have exactly one payment of the usual amount
+    function renderYears(payments, expected, lastMonth, check = true) {
+      const firstMonth = monthIndex(payments[0].date);
+      const years = new Map();
+      for (const payment of payments) {
+        if (!years.has(payment.date.year)) {
+          years.set(payment.date.year, []);
+        }
+        years.get(payment.date.year).push(payment);
+      }
+
+      const firstYear = payments[0].date.year;
+      const lastYear = Math.floor(lastMonth / 12);
+      const sections = [];
+
+      for (let year = lastYear; year >= firstYear; year--) {
+        const yearPayments = years.get(year) ?? [];
+        const yearTotal = sumPayments(yearPayments);
+        const section = element('section', 'year');
+
+        const yearHeader = element('div', 'year-header');
+        yearHeader.append(
+          element('div', 'year-name', String(year)),
+          element('div', 'year-total', formatEuros(yearTotal)),
+        );
+
+        const months = element('div', 'months');
+        let expectedMonths = 0;
+        let missingMonths = 0;
+
+        for (let month = 1; month <= 12; month++) {
+          const index = year * 12 + month - 1;
+          const monthPayments = yearPayments.filter((p) => p.date.month === month);
+          const monthTotal = monthPayments.reduce((sum, p) => sum + p.amount, 0);
+          const cell = element('div', 'month');
+          let text = formatEuros(monthTotal);
+
+          if (!check) {
+            if (monthPayments.length === 0) {
+              cell.classList.add('out-of-range');
+              text = '·';
+            }
+          } else if (index < firstMonth || index > lastMonth) {
+            cell.classList.add('out-of-range');
+            text = '·';
+          } else {
+            expectedMonths++;
+            if (monthPayments.length === 0) {
+              missingMonths++;
+              cell.classList.add('missing');
+              text = '—';
+            } else if (monthPayments.length > 1 ||
+              monthTotal.toFixed(2) !== expected.toFixed(2)) {
+              cell.classList.add('unusual');
+            }
+          }
+
+          if (monthPayments.length > 0) {
+            cell.dataset.action = 'show-rows';
+            cell.dataset.rows = monthPayments.map((p) => p.index).join(',');
+            cell.title = 'Show in the table';
+          }
+
+          let name = MONTHS[month - 1];
+          if (monthPayments.length > 1) {
+            name += ` ×${monthPayments.length}`;
+          }
+          cell.append(
+            element('div', 'month-name', name),
+            element('div', 'month-value', text),
+          );
+          months.appendChild(cell);
+        }
+
+        const summary = element('div', 'year-summary');
+        if (!check) {
+          summary.append(`${yearPayments.length} payments`);
+        } else {
+          summary.append(`Paid ${expectedMonths - missingMonths} of ${expectedMonths} months`);
+        }
+        if (missingMonths > 0) {
+          summary.append(' · ', element('span', 'bad', `${missingMonths} missing`));
+        }
+
+        const list = element('table', 'payments');
+        for (const payment of yearPayments) {
+          const tr = list.insertRow();
+          tr.dataset.action = 'show-rows';
+          tr.dataset.rows = String(payment.index);
+          tr.title = 'Show in the table';
+          tr.insertCell().textContent = formatDate(payment.date);
+          const amountCell = tr.insertCell();
+          amountCell.className = 'amount';
+          amountCell.textContent = formatEuros(payment.amount);
+        }
+
+        section.append(yearHeader, summary, months, list);
+        sections.push(section);
+      }
+
+      return sections;
+    }
+
+    // If the first column holds dates, show the most recent rows first
+    function sortByFirstColumnDate(body) {
+      const dates = body.map((row) => parseDate(row[0] ?? ''));
+      if (dates.some((date) => date === null)) {
+        return;
+      }
+      const order = body.map((row, index) => ({ row, date: dates[index] }));
+      order.sort((a, b) =>
+        monthIndex(b.date) - monthIndex(a.date) || b.date.day - a.date.day);
+      body.splice(0, body.length, ...order.map((item) => item.row));
+    }
+
+    function showError(message) {
+      errorBox.textContent = message;
+      errorBox.hidden = false;
+    }
+
+    restoreCurrentFile();
+  </script>
+</body>
+</html>
